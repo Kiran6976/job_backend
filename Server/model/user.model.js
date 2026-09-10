@@ -21,14 +21,18 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters"],
+      default: "",
+    },
+    googleId: {
+      type: String,
+      default: "",
     },
     role: {
       type: String,
       enum: ["jobseeker", "recruiter", "admin"],
       default: "jobseeker",
     },
+
     profile: {
       bio: { type: String, default: "" },
       skills: [{ type: String }],

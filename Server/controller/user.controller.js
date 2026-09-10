@@ -2,6 +2,10 @@ import { User } from "../model/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 // ==========================================
 // REGISTER
@@ -291,3 +295,110 @@ export const updateProfile = async (req, res) => {
     });
   }
 };
+
+// ==========================================
+// GOOGLE OAUTH LOGIN / SIGNUP
+// ==========================================
+export const googleAuth = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Google token is required.",
+      });
+    }
+
+    // Verify token with Google
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      // Fallback verification via Google tokeninfo endpoint
+      const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+      if (!googleRes.ok) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired Google token.",
+        });
+      }
+      payload = await googleRes.json();
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({
+        success: false,
+        message: "Unable to retrieve user information from Google.",
+      });
+    }
+
+    const { email, name, sub: googleId, picture } = payload;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user already exists
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      // Create new Job Seeker user
+      user = await User.create({
+        fullname: name || "Google User",
+        email: normalizedEmail,
+        googleId: googleId || "",
+        role: "jobseeker",
+        profile: {
+          profilePhoto: picture || "",
+        },
+      });
+    } else {
+      // If user exists without googleId, link it
+      if (!user.googleId && googleId) {
+        user.googleId = googleId;
+        if (picture && (!user.profile?.profilePhoto || user.profile.profilePhoto.includes("unsplash"))) {
+          user.profile.profilePhoto = picture;
+        }
+        await user.save();
+      }
+    }
+
+    // Issue JWT token
+    const tokenData = { userId: user._id };
+    const jwtToken = jwt.sign(tokenData, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    const sanitizedUser = {
+      _id: user._id,
+      fullname: user.fullname,
+      email: user.email,
+      phoneNumber: user.phoneNumber || "",
+      role: user.role,
+      profile: user.profile,
+    };
+
+    return res
+      .status(200)
+      .cookie("token", jwtToken, {
+        maxAge: 1 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        sameSite: "strict",
+      })
+      .json({
+        success: true,
+        message: `Welcome, ${user.fullname}!`,
+        token: jwtToken,
+        user: sanitizedUser,
+      });
+  } catch (error) {
+    console.error("Google Auth error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error occurred during Google authentication.",
+    });
+  }
+};
+
