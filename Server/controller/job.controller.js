@@ -342,6 +342,7 @@ export const createJob = async (req, res) => {
       vacancyTableType: req.body.vacancyTableType || "standard",
       rrbVacancies: req.body.rrbVacancies || [],
       examPattern: req.body.examPattern || undefined,
+      applicationFee: req.body.applicationFee || undefined,
       salary: salary ? salary.trim() : "",
       location: location ? location.trim() : "All India",
       tags: processedTags,
