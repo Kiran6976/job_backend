@@ -60,6 +60,19 @@ const DEFAULT_ORGANIZATIONS = [
     officialWebsite: "https://ibps.in",
   },
   {
+    name: "Staff Selection Commission",
+    code: "SSC",
+    category: "Government Exams",
+    logoUrl: "/Staff_Selection_Commission_Logo.jpg",
+    bannerUrl: "/SSC.png",
+    about:
+      "Staff Selection Commission (SSC) is an organization under Government of India to recruit staff for various posts in the various Ministries and Departments of the Government of India and in Subordinate Offices.",
+    slogan: "Opportunities for a Brighter Tomorrow",
+    subSlogan: "Same Preparation, Bigger Opportunities",
+    selectionStages: "Tier 1 • Tier 2 • Document Verification",
+    officialWebsite: "https://ssc.gov.in",
+  },
+  {
     name: "Indian Navy Recruitment Board",
     code: "Indian Navy",
     category: "Government Exams",
@@ -290,6 +303,10 @@ export const createJob = async (req, res) => {
         .filter(Boolean);
     }
 
+    const isSSC = organization.trim().toLowerCase().includes("staff selection commission") || organization.trim().toLowerCase() === "ssc";
+    const defaultBanner = isSSC ? "/SSC.png" : "/UPSC.png";
+    const defaultLogo = isSSC ? "/Staff_Selection_Commission_Logo.jpg" : "";
+
     const newJob = await Job.create({
       title: title.trim(),
       organization: organization.trim(),
@@ -304,10 +321,10 @@ export const createJob = async (req, res) => {
       applicationLastDate: req.body.applicationLastDate ? String(req.body.applicationLastDate).trim() : "",
       resultDate: req.body.resultDate ? String(req.body.resultDate).trim() : "",
       selectionStages: req.body.selectionStages ? String(req.body.selectionStages).trim() : "Prelims • Mains • Interview",
-      slogan: req.body.slogan ? String(req.body.slogan).trim() : "Serve Lead Bring Change",
-      subSlogan: req.body.subSlogan ? String(req.body.subSlogan).trim() : "A Stronger India Needs You",
+      slogan: req.body.slogan ? String(req.body.slogan).trim() : (isSSC ? "Opportunities for a Brighter Tomorrow" : "Serve Lead Bring Change"),
+      subSlogan: req.body.subSlogan ? String(req.body.subSlogan).trim() : (isSSC ? "Same Preparation, Bigger Opportunities" : "A Stronger India Needs You"),
       aboutOrg: req.body.aboutOrg ? String(req.body.aboutOrg).trim() : "",
-      bannerUrl: req.body.bannerUrl ? String(req.body.bannerUrl).trim() : "/UPSC.png",
+      bannerUrl: req.body.bannerUrl ? String(req.body.bannerUrl).trim() : defaultBanner,
       notificationPdfUrl: req.body.notificationPdfUrl ? String(req.body.notificationPdfUrl).trim() : "",
       educationalQualification: req.body.educationalQualification ? String(req.body.educationalQualification).trim() : undefined,
       ageLimitMin: req.body.ageLimitMin ? String(req.body.ageLimitMin).trim() : undefined,
@@ -329,7 +346,7 @@ export const createJob = async (req, res) => {
       location: location ? location.trim() : "All India",
       tags: processedTags,
       applyUrl: applyUrl ? applyUrl.trim() : "#",
-      logoUrl: logoUrl ? logoUrl.trim() : "",
+      logoUrl: logoUrl ? logoUrl.trim() : defaultLogo,
       description: description ? description.trim() : "",
     });
 
@@ -460,6 +477,21 @@ export const getAllOrganizations = async (req, res) => {
     // Seed defaults if empty
     if (!orgs || orgs.length === 0) {
       await Organization.insertMany(DEFAULT_ORGANIZATIONS);
+      orgs = await Organization.find().sort({ name: 1 });
+    } else {
+      // Ensure key standard organizations (like SSC) exist in DB
+      for (const defOrg of DEFAULT_ORGANIZATIONS) {
+        const found = orgs.find((o) => o.name.toLowerCase() === defOrg.name.toLowerCase());
+        if (!found) {
+          await Organization.create(defOrg);
+        } else if (defOrg.name === "Staff Selection Commission" && (!found.bannerUrl || found.bannerUrl === "/UPSC.png")) {
+          // Keep banner & logo updated to SSC.png & Staff_Selection_Commission_Logo.jpg
+          await Organization.findByIdAndUpdate(found._id, {
+            bannerUrl: defOrg.bannerUrl,
+            logoUrl: defOrg.logoUrl,
+          });
+        }
+      }
       orgs = await Organization.find().sort({ name: 1 });
     }
 

@@ -34,6 +34,22 @@ const preparePdfTextForAI = (fullText, maxChars = 350000) => {
     /syllabus for/i,
     /educational qualification/i,
     /age limit/i,
+    // SSC & Standard Post/Organization tables
+    /organization\s*(?:and\s*)?post/i,
+    /post.*essential educational qualification/i,
+    /essential educational qualification/i,
+    /details of posts/i,
+    /name of (?:the )?post/i,
+    /name of (?:the )?department/i,
+    /participating (?:departments|organizations|services)/i,
+    /tentative vacanc/i,
+    /service-wise/i,
+    /cadre-wise/i,
+    /central public works department/i,
+    /military engineer services/i,
+    /dgqa-naval/i,
+    /farakka barrage/i,
+    /national technical research organization/i,
     // Railway & Vacancy Table sections - capture all 21 regional RRBs
     /vacancy table/i,
     /rrb\s*[-–—:]\s*[a-z]+/i,
@@ -174,6 +190,59 @@ CRITICAL INSTRUCTIONS FOR EXAM PATTERN & PAPERS BREAKDOWN:
      * "paymentMode": Payment mode mentioned (e.g. "Online", "SBI Challan / Net Banking / Debit Card / Credit Card / UPI")
      * "note": Any additional fee note (e.g. "Only candidates who appear in 1st stage CBT will get refund")
    - If no fee is mentioned, set "applicationFee": null.
+9. CRITICAL INSTRUCTIONS FOR SERVICE-WISE / POST-WISE VACANCY DISTRIBUTION & QUALIFICATIONS (SSC, UPSC, CENTRAL MINISTRIES, STATE PSCs):
+   - For non-RRB recruitment (e.g. SSC, UPSC, Central Government Ministries, State PSCs):
+     Look for any table or section listing:
+     * "Organization", "Post", "Essential Educational Qualifications", "Age limit" (e.g. as in SSC JE, SSC CGL, SSC CHSL notifications where tables list S. No. | Organization | Post | Essential Educational Qualifications | Age limit).
+     * IMPORTANT: Where an Organization has multiple posts (for example, row 1 "Border Roads Organization" with "JE(C)" and "JE (E & M)", row 4 "Central Public Works Department (CPWD)" with "JE (E)" and "JE (C)", or row 6 "DGQA-NAVAL" with "JE(M)" and "JE(E)", or row 9 "Military Engineer Services (MES)" with "JE (C)" and "JE (E & M)"), YOU MUST EXTRACT EACH POST AS A SEPARATE INDIVIDUAL ENTRY!
+     * Format the service name clearly by joining the Organization and Post: e.g.
+       - "Border Roads Organization - JE(C)"
+       - "Border Roads Organization - JE (E & M)"
+       - "Brahmaputra Board, Ministry of Jal Shakti - JE (C)"
+       - "Central Water Commission - JE (M)"
+       - "Central Water Commission - JE (C)"
+       - "Central Public Works Department (CPWD) - JE (Electrical)"
+       - "Central Public Works Department (CPWD) - JE (Civil)"
+       - "Central Water and Power Research Station - JE (Electrical)"
+       - "Central Water and Power Research Station - JE (Civil)"
+       - "DGQA-NAVAL, Ministry of Defence - JE (Mechanical)"
+       - "DGQA-NAVAL, Ministry of Defence - JE (Electrical)"
+       - "Farakka Barrage Project, Ministry of Jal Shakti - JE (Electrical)"
+       - "Farakka Barrage Project, Ministry of Jal Shakti - JE (Civil)"
+       - "Military Engineer Services (MES) - JE (Civil)"
+       - "Military Engineer Services (MES) - JE (Electrical & Mechanical)"
+       - "National Technical Research Organization (NTRO) - JE (Civil)"
+       - "Director General of Lighthouses & Lightships - JE (Civil)"
+       - "Director General of Lighthouses & Lightships - JE (Electrical)"
+     * CRITICAL FOR ESSENTIAL EDUCATIONAL QUALIFICATIONS:
+       Extract the EXACT Educational Qualification requirement from the "Essential Educational Qualifications" column into "qualification" (or "educationalQualification").
+       For example:
+       - "Degree in Civil Engineering from a recognized University/Institute; Or (a) Three-Year Diploma in Civil Engineering from a recognized University/ Institute/ Board; and (b) Two years of working experience in Planning/ Execution/ Maintenance of Civil Engineering works"
+       - "Degree in Electrical or Mechanical Engineering from a recognized University/Institute; Or (a) Three-year Diploma in Electrical/ Automobile/ Mechanical Engineering from a recognized University/ Institute/ Board; and (b) Two-Year experience in Planning/ Execution/ Maintenance of Electrical or Mechanical Engineering works"
+       - "Three-Year Diploma in Civil Engineering from a recognized University or Institution."
+       - "Bachelor’s Degree or Diploma in Mechanical Engineering from a recognized University or Institution"
+     * CRITICAL FOR AGE LIMIT:
+       Extract the age limit requirement for that post from the "Age limit" column into "ageLimit" (e.g. "Up to 30 years", "Up to 32 Years").
+     * Vacancy counts (ur, obc, sc, st, ews, total):
+       Since many SSC notifications (like SSC JE) list qualifications per post but do not give per-post vacancy breakups in this table, set ur: 0, obc: 0, sc: 0, st: 0, ews: 0, total: 0 unless explicit numerical vacancy counts for that specific service/post are provided in the notification.
+   - EXTRACT ALL OF THESE INTO "serviceVacancies".
+   - Each item in "serviceVacancies" must follow:
+     {
+       "sNo": 1,
+       "service": "Combined Organization - Post Name",
+       "organization": "Organization Name (e.g. Border Roads Organization)",
+       "post": "Post Name (e.g. JE(C))",
+       "qualification": "Essential Educational Qualifications text from table",
+       "ageLimit": "Age limit text from table (e.g. Up to 30 years)",
+       "ur": 0,
+       "obc": 0,
+       "sc": 0,
+       "st": 0,
+       "ews": 0,
+       "total": 0
+     }
+   - NEVER return "serviceVacancies": [] if an Organization/Post table exists in the notification!
+   - Set "participatingServices": string count of how many services/posts were extracted (e.g. "16").
 
 NOTIFICATION TEXT:
 """
@@ -213,6 +282,22 @@ Return this exact JSON structure:
       "posts": [
         ["6", "JUNIOR ENGINEER / ELECTRICAL / EMU", "ELECTRICAL", "EMU", "WR", 0, 0, 1, 0, 1, 2, 0, 0]
       ]
+    }
+  ],
+  "serviceVacancies": [
+    {
+      "sNo": 1,
+      "service": "Border Roads Organization - JE(C)",
+      "organization": "Border Roads Organization",
+      "post": "JE(C)",
+      "qualification": "Degree in Civil Engineering from a recognized University/Institute; Or (a) Three-Year Diploma in Civil Engineering...",
+      "ageLimit": "Up to 30 years",
+      "ur": 0,
+      "obc": 0,
+      "sc": 0,
+      "st": 0,
+      "ews": 0,
+      "total": 0
     }
   ],
   "categoryVacancies": {
@@ -655,6 +740,58 @@ export const parsePdfWithAI = async (req, res) => {
       }
     } else {
       parsedData.applicationFee = null;
+    }
+
+    // Step 8: Normalize Service-wise / Post-wise Vacancies & Qualifications (SSC, UPSC, etc.)
+    if (Array.isArray(parsedData.serviceVacancies) && parsedData.serviceVacancies.length > 0) {
+      parsedData.serviceVacancies = parsedData.serviceVacancies
+        .map((s, idx) => {
+          const organization = String(s.organization || "").trim();
+          const post = String(s.post || s.postName || "").trim();
+          let serviceName = String(
+            s.service || s.name || s.postTitle || (organization && post ? `${organization} - ${post}` : organization || post) || `Service ${idx + 1}`
+          ).trim();
+          const qualification = String(s.qualification || s.essentialEducationalQualifications || s.educationalQualification || "").trim();
+          const ageLimit = String(s.ageLimit || s.age || "").trim();
+          const ur = parseInt(s.ur, 10) || 0;
+          const obc = parseInt(s.obc, 10) || 0;
+          const sc = parseInt(s.sc, 10) || 0;
+          const st = parseInt(s.st, 10) || 0;
+          const ews = parseInt(s.ews, 10) || 0;
+          const total = parseInt(s.total, 10) || (ur + obc + sc + st + ews) || 0;
+          return {
+            sNo: s.sNo !== undefined && s.sNo !== null ? Number(s.sNo) : idx + 1,
+            service: serviceName,
+            organization: organization || (serviceName.includes(" - ") ? serviceName.split(" - ")[0].trim() : ""),
+            post: post || (serviceName.includes(" - ") ? serviceName.split(" - ").slice(1).join(" - ").trim() : serviceName),
+            qualification,
+            ageLimit,
+            ur,
+            obc,
+            sc,
+            st,
+            ews,
+            total,
+          };
+        })
+        .filter((s) => s.service.length > 0);
+
+      if (!parsedData.participatingServices || parsedData.participatingServices === "0") {
+        parsedData.participatingServices = String(parsedData.serviceVacancies.length);
+      }
+    } else {
+      parsedData.serviceVacancies = [];
+    }
+
+    // Step 9: Default Media Branding if organization matches SSC or other known bodies
+    if (parsedData.organization) {
+      const orgLower = parsedData.organization.toLowerCase();
+      if (orgLower.includes("staff selection commission") || orgLower === "ssc") {
+        parsedData.bannerUrl = "/SSC.png";
+        parsedData.logoUrl = "/Staff_Selection_Commission_Logo.jpg";
+        if (!parsedData.slogan) parsedData.slogan = "Opportunities for a Brighter Tomorrow";
+        if (!parsedData.subSlogan) parsedData.subSlogan = "Same Preparation, Bigger Opportunities";
+      }
     }
 
     return res.status(200).json({

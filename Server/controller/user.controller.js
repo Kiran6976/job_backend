@@ -235,7 +235,20 @@ export const getProfile = async (req, res) => {
 // ==========================================
 export const updateProfile = async (req, res) => {
   try {
-    const { fullname, email, phoneNumber, bio, skills } = req.body;
+    const {
+      fullname,
+      email,
+      phoneNumber,
+      bio,
+      skills,
+      headline,
+      motto,
+      location,
+      education,
+      experience,
+      profilePhoto,
+      bannerImage,
+    } = req.body;
     const userId = req.id;
 
     let user = await User.findById(userId);
@@ -257,18 +270,40 @@ export const updateProfile = async (req, res) => {
       } catch (uploadError) {
         console.error("Cloudinary profile photo upload failed:", uploadError);
       }
+    } else if (profilePhoto !== undefined) {
+      user.profile.profilePhoto = profilePhoto;
     }
 
-    if (fullname) user.fullname = fullname.trim();
-    if (email) user.email = email.toLowerCase().trim();
-    if (phoneNumber) user.phoneNumber = phoneNumber.trim();
-    if (bio) user.profile.bio = bio;
+    if (fullname !== undefined) user.fullname = fullname.trim();
+    if (email !== undefined) user.email = email.toLowerCase().trim();
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber.trim();
+    if (bio !== undefined) user.profile.bio = bio;
+    if (headline !== undefined) user.profile.headline = headline;
+    if (motto !== undefined) user.profile.motto = motto;
+    if (location !== undefined) user.profile.location = location;
+    if (bannerImage !== undefined) user.profile.bannerImage = bannerImage;
 
-    if (skills) {
+    if (skills !== undefined) {
       const skillsArray = typeof skills === "string"
-        ? skills.split(",").map((s) => s.trim())
-        : skills;
+        ? skills.split(",").map((s) => s.trim()).filter(Boolean)
+        : Array.isArray(skills) ? skills : [];
       user.profile.skills = skillsArray;
+    }
+
+    if (education !== undefined) {
+      try {
+        user.profile.education = typeof education === "string" ? JSON.parse(education) : education;
+      } catch (e) {
+        if (Array.isArray(education)) user.profile.education = education;
+      }
+    }
+
+    if (experience !== undefined) {
+      try {
+        user.profile.experience = typeof experience === "string" ? JSON.parse(experience) : experience;
+      } catch (e) {
+        if (Array.isArray(experience)) user.profile.experience = experience;
+      }
     }
 
     await user.save();
@@ -280,6 +315,7 @@ export const updateProfile = async (req, res) => {
       phoneNumber: user.phoneNumber,
       role: user.role,
       profile: user.profile,
+      createdAt: user.createdAt,
     };
 
     return res.status(200).json({
