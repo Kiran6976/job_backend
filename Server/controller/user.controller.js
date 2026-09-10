@@ -402,3 +402,282 @@ export const googleAuth = async (req, res) => {
   }
 };
 
+// ==========================================
+// ADMIN: GET ALL USERS (REAL-TIME, SEARCH, FILTER, PAGINATION)
+// ==========================================
+export const getAllUsersAdmin = async (req, res) => {
+  try {
+    const {
+      search = "",
+      role = "all",
+      provider = "all",
+      status = "all",
+      sortBy = "newest",
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const query = {};
+
+    // Search query across name, email, phone
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      query.$or = [
+        { fullname: searchRegex },
+        { email: searchRegex },
+        { phoneNumber: searchRegex },
+      ];
+    }
+
+    // Role filter
+    if (role && role !== "all") {
+      query.role = role;
+    }
+
+    // Provider filter
+    if (provider === "google") {
+      query.googleId = { $exists: true, $ne: "" };
+    } else if (provider === "local") {
+      query.$or = [
+        { googleId: { $exists: false } },
+        { googleId: "" },
+      ];
+    }
+
+    // Status filter
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    // Sort order
+    let sortOptions = { createdAt: -1 };
+    if (sortBy === "oldest") sortOptions = { createdAt: 1 };
+    else if (sortBy === "name_asc") sortOptions = { fullname: 1 };
+    else if (sortBy === "name_desc") sortOptions = { fullname: -1 };
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .select("-password")
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      User.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      users,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    });
+  } catch (error) {
+    console.error("Get All Users Admin error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch users.",
+    });
+  }
+};
+
+// ==========================================
+// ADMIN: GET USER METRICS & REAL-TIME STATS
+// ==========================================
+export const getUserStatsAdmin = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalJobseekers = await User.countDocuments({ role: "jobseeker" });
+    const totalRecruiters = await User.countDocuments({ role: "recruiter" });
+    const totalAdmins = await User.countDocuments({ role: "admin" });
+    const totalGoogleUsers = await User.countDocuments({
+      googleId: { $exists: true, $ne: "" },
+    });
+    const totalSuspended = await User.countDocuments({ status: "suspended" });
+
+    // Today's new signups
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const newToday = await User.countDocuments({
+      createdAt: { $gte: startOfToday },
+    });
+
+    // Last 7 days signups
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - 7);
+    const newThisWeek = await User.countDocuments({
+      createdAt: { $gte: startOfWeek },
+    });
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        totalUsers,
+        totalJobseekers,
+        totalRecruiters,
+        totalAdmins,
+        totalGoogleUsers,
+        totalSuspended,
+        totalActive: Math.max(0, totalUsers - totalSuspended),
+        newToday,
+        newThisWeek,
+      },
+    });
+  } catch (error) {
+    console.error("Get User Stats Admin error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch user statistics.",
+    });
+  }
+};
+
+// ==========================================
+// ADMIN: UPDATE USER ROLE
+// ==========================================
+export const updateUserRoleAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!["jobseeker", "recruiter", "admin"].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role specified.",
+      });
+    }
+
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (
+      targetUser.email.toLowerCase() === "kiransamanta88@gmail.com" &&
+      role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Primary super administrator account cannot be demoted.",
+      });
+    }
+
+    targetUser.role = role;
+    await targetUser.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `User role updated to '${role}' successfully.`,
+      user: {
+        _id: targetUser._id,
+        fullname: targetUser.fullname,
+        email: targetUser.email,
+        role: targetUser.role,
+        status: targetUser.status || "active",
+      },
+    });
+  } catch (error) {
+    console.error("Update User Role error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update user role.",
+    });
+  }
+};
+
+// ==========================================
+// ADMIN: UPDATE USER STATUS (ACTIVE / SUSPENDED)
+// ==========================================
+export const updateUserStatusAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["active", "suspended"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be either 'active' or 'suspended'.",
+      });
+    }
+
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (targetUser.email.toLowerCase() === "kiransamanta88@gmail.com") {
+      return res.status(403).json({
+        success: false,
+        message: "Primary super administrator account cannot be suspended.",
+      });
+    }
+
+    targetUser.status = status;
+    await targetUser.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Account status updated to '${status}'.`,
+      user: {
+        _id: targetUser._id,
+        fullname: targetUser.fullname,
+        email: targetUser.email,
+        status: targetUser.status,
+      },
+    });
+  } catch (error) {
+    console.error("Update User Status error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update user status.",
+    });
+  }
+};
+
+// ==========================================
+// ADMIN: DELETE USER
+// ==========================================
+export const deleteUserAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (targetUser.email.toLowerCase() === "kiransamanta88@gmail.com") {
+      return res.status(403).json({
+        success: false,
+        message: "Primary super administrator account cannot be deleted.",
+      });
+    }
+
+    await User.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: `User ${targetUser.fullname} was permanently deleted.`,
+    });
+  } catch (error) {
+    console.error("Delete User error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete user.",
+    });
+  }
+};
+

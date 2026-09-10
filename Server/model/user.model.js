@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema(
       enum: ["jobseeker", "recruiter", "admin"],
       default: "jobseeker",
     },
+    status: {
+      type: String,
+      enum: ["active", "suspended"],
+      default: "active",
+    },
 
     profile: {
       bio: { type: String, default: "" },
