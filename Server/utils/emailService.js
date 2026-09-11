@@ -4,7 +4,7 @@ import { User } from "../model/user.model.js";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const resend = new Resend(RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "JobPortal <onboarding@resend.dev>";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "JobPortal <notifications@theworkflow.online>";
 const SITE_URL = process.env.CLIENT_URL || "https://theworkflow.online";
 
 /**
