@@ -17,7 +17,7 @@ const SITE_URL = process.env.CLIENT_URL || "https://theworkflow.online";
 export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Password" }) => {
   if (!email) return;
 
-  const displayName = name || "Aspirant";
+  const displayName = name || "there";
   const firstName = displayName.split(" ")[0] || "there";
 
   const emailHtml = `
@@ -26,7 +26,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to The Workflow</title>
+  <title>Welcome to The Workflow — Your Career Journey Starts Here</title>
   <style>
     body {
       margin: 0;
@@ -36,10 +36,20 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       color: #1e293b;
       line-height: 1.6;
     }
+    .preview-text {
+      display: none;
+      max-height: 0px;
+      overflow: hidden;
+      mso-hide: all;
+      font-size: 1px;
+      line-height: 1px;
+      color: #ffffff;
+      opacity: 0;
+    }
     .wrapper {
       width: 100%;
       background-color: #f8fafc;
-      padding: 40px 16px;
+      padding: 36px 12px;
     }
     .container {
       max-width: 580px;
@@ -51,7 +61,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
     }
     .header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
       padding: 36px 32px;
       text-align: center;
       color: #ffffff;
@@ -72,16 +82,18 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
     .header-title {
       font-size: 26px;
       font-weight: 800;
-      margin: 0 0 6px;
+      margin: 0 0 8px;
       letter-spacing: -0.5px;
+      color: #ffffff;
     }
     .header-sub {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.85);
+      font-size: 14.5px;
+      color: rgba(255, 255, 255, 0.9);
       margin: 0;
+      line-height: 1.4;
     }
     .body {
-      padding: 32px;
+      padding: 32px 28px;
     }
     .greeting {
       font-size: 18px;
@@ -92,37 +104,66 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
     .text {
       font-size: 15px;
       color: #475569;
-      margin: 0 0 20px;
+      margin: 0 0 16px;
+      line-height: 1.65;
     }
-    .info-card {
-      background-color: #f1f5f9;
-      border-left: 4px solid #2563eb;
-      border-radius: 8px;
-      padding: 14px 18px;
-      margin-bottom: 24px;
-      font-size: 13.5px;
-      color: #334155;
+    .section-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 28px 0 16px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
     }
     .features-list {
       margin: 0 0 28px;
       padding: 0;
       list-style: none;
     }
-    .feature-item {
+    .feature-card {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
       display: flex;
       align-items: flex-start;
-      margin-bottom: 14px;
-      font-size: 14px;
-      color: #334155;
     }
     .feature-icon {
-      font-size: 18px;
-      margin-right: 12px;
+      font-size: 22px;
+      margin-right: 14px;
       line-height: 1.2;
+      flex-shrink: 0;
     }
-    .cta-wrap {
+    .feature-content {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.55;
+    }
+    .feature-name {
+      font-weight: 700;
+      color: #0f172a;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .cta-box {
+      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 24px;
       text-align: center;
-      margin: 32px 0 16px;
+      margin: 28px 0;
+    }
+    .cta-box-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 6px;
+    }
+    .cta-box-sub {
+      font-size: 14px;
+      color: #475569;
+      margin: 0 0 18px;
     }
     .cta-btn {
       display: inline-block;
@@ -135,9 +176,20 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       border-radius: 999px;
       box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
     }
+    .signoff {
+      font-size: 14.5px;
+      color: #334155;
+      margin: 24px 0 0;
+      line-height: 1.6;
+    }
+    .signoff-tagline {
+      font-weight: 700;
+      color: #0f172a;
+      margin: 8px 0;
+    }
     .footer {
       background-color: #f8fafc;
-      padding: 24px 32px;
+      padding: 24px 28px;
       text-align: center;
       font-size: 12px;
       color: #94a3b8;
@@ -151,47 +203,74 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
   </style>
 </head>
 <body>
+  <div class="preview-text">
+    Your account is ready. Discover opportunities, stay updated, and take the next step toward your career goals.
+  </div>
+
   <div class="wrapper">
     <div class="container">
       <div class="header">
-        <div class="header-badge">Welcome to The Workflow</div>
-        <h1 class="header-title">Opportunities Await, ${firstName}!</h1>
-        <p class="header-sub">Your gateway to top government &amp; career opportunities</p>
+        <div class="header-badge">The Workflow</div>
+        <h1 class="header-title">Welcome to The Workflow 👋</h1>
+        <p class="header-sub">Your next opportunity could be closer than you think.</p>
       </div>
 
       <div class="body">
-        <h2 class="greeting">Hi ${displayName},</h2>
+        <h2 class="greeting">Hi ${firstName},</h2>
         <p class="text">
-          Welcome aboard! You have successfully signed in to <strong>The Workflow</strong> via <strong>${loginMethod}</strong>. We're excited to have you join thousands of ambitious aspirants building brighter careers.
+          Welcome to <strong>The Workflow</strong> — your dedicated platform for discovering and staying on top of government jobs, competitive exams, and career opportunities.
+        </p>
+        <p class="text">
+          Your account has been successfully created, and you're now ready to explore everything The Workflow has to offer.
         </p>
 
-        <div class="info-card">
-          <strong>Account Email:</strong> ${email}<br>
-          <strong>Authentication Method:</strong> ${loginMethod}<br>
-          <strong>Access:</strong> Full Portal Access (Notifications, Admit Cards &amp; Details)
+        <h3 class="section-title">Everything you need, in one place.</h3>
+
+        <div class="features-list">
+          <div class="feature-card">
+            <span class="feature-icon">🏛️</span>
+            <div class="feature-content">
+              <span class="feature-name">Discover Career Opportunities</span>
+              Explore the latest opportunities from UPSC, SSC, Railways (RRB), Banking (IBPS), Defence, Teaching, and more.
+            </div>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">📄</span>
+            <div class="feature-content">
+              <span class="feature-name">Access Exam Information</span>
+              Get clear, organized information about exam patterns, eligibility criteria, vacancies, important dates, and official notifications.
+            </div>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">🔔</span>
+            <div class="feature-content">
+              <span class="feature-name">Stay Ahead of Deadlines</span>
+              Receive timely updates about application deadlines, exam dates, admit cards, results, and other important announcements.
+            </div>
+          </div>
+
+          <div class="feature-card">
+            <span class="feature-icon">📚</span>
+            <div class="feature-content">
+              <span class="feature-name">Prepare with Confidence</span>
+              Find the information you need to understand each opportunity and make better decisions about your career path.
+            </div>
+          </div>
         </div>
 
-        <p class="text" style="font-weight: 600; color: #0f172a; margin-bottom: 12px;">
-          Here is what you can do right away:
-        </p>
-
-        <ul class="features-list">
-          <li class="feature-item">
-            <span class="feature-icon">🏛️</span>
-            <div><strong>Explore Central &amp; State Opportunities:</strong> Check official notifications for UPSC, SSC, Railways (RRB), Banking (IBPS), Defense, and Teaching posts.</div>
-          </li>
-          <li class="feature-item">
-            <span class="feature-icon">📑</span>
-            <div><strong>Exam Patterns &amp; PDF Notifications:</strong> Instant access to full multi-stage exam schemes, marking rules, and official notification PDFs.</div>
-          </li>
-          <li class="feature-item">
-            <span class="feature-icon">🔔</span>
-            <div><strong>Real-Time Updates:</strong> Stay ahead of application deadlines, eligibility criteria, and results.</div>
-          </li>
-        </ul>
-
-        <div class="cta-wrap">
+        <div class="cta-box">
+          <div class="cta-box-title">Ready to explore?</div>
+          <p class="cta-box-sub">Your journey starts now. Discover opportunities that match your ambitions and stay informed every step of the way.</p>
           <a href="${SITE_URL}/jobs" class="cta-btn">Explore Opportunities &rarr;</a>
+        </div>
+
+        <div class="signoff">
+          <p style="margin: 0 0 6px; font-weight: 600; color: #1e293b;">One platform. Every opportunity. Your next step.</p>
+          <p style="margin: 0 0 6px;">We're excited to have you with us.</p>
+          <p class="signoff-tagline">Welcome to The Workflow. Your career, your opportunities, your workflow.</p>
+          <p style="margin: 12px 0 0; color: #64748b;">— Team The Workflow</p>
         </div>
       </div>
 
@@ -213,7 +292,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
     const data = await resend.emails.send({
       from: FROM_EMAIL,
       to: [email],
-      subject: `Welcome to The Workflow, ${firstName}! 🚀`,
+      subject: `Welcome to The Workflow — Your Career Journey Starts Here 🚀`,
       html: emailHtml,
     });
     console.log(`[Resend] Welcome email sent to ${email} (ID: ${data?.data?.id || data?.id || "OK"})`);
