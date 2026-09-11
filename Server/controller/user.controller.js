@@ -6,6 +6,20 @@ import { OAuth2Client } from "google-auth-library";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Token validity: default 365 days for permanent session
+const TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "365d";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // 365 days
+
+const getAuthCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    maxAge: COOKIE_MAX_AGE,
+    httpOnly: true,
+    sameSite: isProd ? "none" : "lax",
+    secure: isProd,
+  };
+};
+
 
 // ==========================================
 // REGISTER
@@ -144,10 +158,10 @@ export const login = async (req, res) => {
       });
     }
 
-    // Sign JWT token (1 day validity)
+    // Sign JWT token (long-term validity)
     const tokenData = { userId: user._id };
     const token = jwt.sign(tokenData, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: TOKEN_EXPIRES_IN,
     });
 
     const sanitizedUser = {
@@ -161,11 +175,7 @@ export const login = async (req, res) => {
 
     return res
       .status(200)
-      .cookie("token", token, {
-        maxAge: 1 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        sameSite: "strict",
-      })
+      .cookie("token", token, getAuthCookieOptions())
       .json({
         success: true,
         message: `Welcome back, ${user.fullname}!`,
@@ -186,9 +196,15 @@ export const login = async (req, res) => {
 // ==========================================
 export const logout = async (req, res) => {
   try {
+    const isProd = process.env.NODE_ENV === "production";
     return res
       .status(200)
-      .cookie("token", "", { maxAge: 0 })
+      .cookie("token", "", {
+        maxAge: 0,
+        httpOnly: true,
+        sameSite: isProd ? "none" : "lax",
+        secure: isProd,
+      })
       .json({
         success: true,
         message: "Logged out successfully.",
@@ -401,10 +417,10 @@ export const googleAuth = async (req, res) => {
       }
     }
 
-    // Issue JWT token
+    // Issue JWT token (long-term validity)
     const tokenData = { userId: user._id };
     const jwtToken = jwt.sign(tokenData, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: TOKEN_EXPIRES_IN,
     });
 
     const sanitizedUser = {
@@ -418,11 +434,7 @@ export const googleAuth = async (req, res) => {
 
     return res
       .status(200)
-      .cookie("token", jwtToken, {
-        maxAge: 1 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        sameSite: "strict",
-      })
+      .cookie("token", jwtToken, getAuthCookieOptions())
       .json({
         success: true,
         message: `Welcome, ${user.fullname}!`,
