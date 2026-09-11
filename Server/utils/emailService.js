@@ -4,7 +4,7 @@ import { User } from "../model/user.model.js";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const resend = new Resend(RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "JobPortal <notifications@theworkflow.online>";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "The Workflow <notifications@theworkflow.online>";
 const SITE_URL = process.env.CLIENT_URL || "https://theworkflow.online";
 
 /**
@@ -26,7 +26,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to JobPortal</title>
+  <title>Welcome to The Workflow</title>
   <style>
     body {
       margin: 0;
@@ -154,7 +154,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
   <div class="wrapper">
     <div class="container">
       <div class="header">
-        <div class="header-badge">Welcome to JobPortal</div>
+        <div class="header-badge">Welcome to The Workflow</div>
         <h1 class="header-title">Opportunities Await, ${firstName}!</h1>
         <p class="header-sub">Your gateway to top government &amp; career opportunities</p>
       </div>
@@ -162,7 +162,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       <div class="body">
         <h2 class="greeting">Hi ${displayName},</h2>
         <p class="text">
-          Welcome aboard! You have successfully signed in to <strong>JobPortal</strong> via <strong>${loginMethod}</strong>. We're excited to have you join thousands of ambitious aspirants building brighter careers.
+          Welcome aboard! You have successfully signed in to <strong>The Workflow</strong> via <strong>${loginMethod}</strong>. We're excited to have you join thousands of ambitious aspirants building brighter careers.
         </p>
 
         <div class="info-card">
@@ -196,7 +196,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       </div>
 
       <div class="footer">
-        <p style="margin: 0 0 8px;">&copy; ${new Date().getFullYear()} JobPortal. All rights reserved.</p>
+        <p style="margin: 0 0 8px;">&copy; ${new Date().getFullYear()} The Workflow. All rights reserved.</p>
         <div class="footer-links">
           <a href="${SITE_URL}">Home</a> &bull;
           <a href="${SITE_URL}/jobs">Browse Jobs</a> &bull;
@@ -213,7 +213,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
     const data = await resend.emails.send({
       from: FROM_EMAIL,
       to: [email],
-      subject: `Welcome to JobPortal, ${firstName}! 🚀`,
+      subject: `Welcome to The Workflow, ${firstName}! 🚀`,
       html: emailHtml,
     });
     console.log(`[Resend] Welcome email sent to ${email} (ID: ${data?.data?.id || data?.id || "OK"})`);
@@ -411,7 +411,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       <div class="body">
         <h2 class="greeting">Hi ${firstName},</h2>
         <p class="text">
-          A new career opportunity matching recent notifications has just been posted on <strong>JobPortal</strong>. Check the details below and apply before the deadline!
+          A new career opportunity matching recent notifications has just been posted on <strong>The Workflow</strong>. Check the details below and apply before the deadline!
         </p>
 
         <div class="job-card">
@@ -462,7 +462,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       </div>
 
       <div class="footer">
-        <p style="margin: 0 0 8px;">&copy; ${new Date().getFullYear()} JobPortal. You are receiving this email because you are registered on JobPortal.</p>
+        <p style="margin: 0 0 8px;">&copy; ${new Date().getFullYear()} The Workflow. You are receiving this email because you are registered on The Workflow.</p>
         <div class="footer-links">
           <a href="${SITE_URL}">Home</a> &bull;
           <a href="${SITE_URL}/jobs">All Jobs</a> &bull;
@@ -503,7 +503,7 @@ export const broadcastNewJobNotification = async ({ job }) => {
 
     console.log(`[Resend] Broadcasting new job alert '${job.title}' to ${users.length} registered user(s)...`);
 
-    const subject = `📢 New Job Alert: ${job.title} - ${job.organization} | JobPortal`;
+    const subject = `📢 New Job Alert: ${job.title} - ${job.organization} | The Workflow`;
 
     // 2. Check if batch API is available on resend instance
     if (resend.batch && typeof resend.batch.send === "function") {
