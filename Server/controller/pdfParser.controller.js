@@ -144,15 +144,39 @@ CRITICAL INSTRUCTIONS FOR EXAM PATTERN & PAPERS BREAKDOWN:
    - NEVER leave subjectsCovered empty if subjects or syllabus are mentioned in the notification!
 4. If there is a Tier-II / Mains examination:
    - Extract all Tier-II sections, papers, or modules into "stageData.mains.papers" with their subjects, questions, marks, and duration.
-5. Extract negative marking rules and duration accurately.
-6. Extract Negative Marking & Marking Scheme details:
-   - "negativeMarking.penalty": Penalty deducted for each wrong answer (e.g. "-0.50 marks", "-0.66 marks", "-1/3 mark").
-   - "negativeMarking.advice": Exact candidate warning/advice from notification (e.g. "Candidates are, therefore, advised to keep this in mind while answering the questions." or "Candidates are advised to avoid guessing.").
-   - "negativeMarking.text": Full negative marking sentence from notification (e.g. "There will be negative marking of 0.50 marks for each wrong answer.").
-   - "markingScheme.correct": Marks awarded for each correct answer (e.g. "+2 marks").
-   - "markingScheme.incorrect": Marks deducted for wrong answer (e.g. "-0.50 marks").
-   - "markingScheme.unanswered": Marks for unanswered questions (e.g. "0 marks" or "No marks").
-7. CRITICAL INSTRUCTIONS FOR RAILWAY (RRB) VACANCY TABLES:
+5. CRITICAL INSTRUCTIONS FOR NEGATIVE MARKING & SELECTION SCHEME:
+   - Check if an examination is conducted or if the selection is based on Merit / Direct Interview / Academic Marks.
+   - If selection is Merit-Based (no written exam) or there is NO examination:
+     * "negativeMarking.enabled": false
+     * "negativeMarking.penalty": "0 marks"
+     * "negativeMarking.penaltyLabel": "no penalty score"
+     * "negativeMarking.text": "Selection is purely merit-based with no negative marking."
+     * "negativeMarking.advice": "Selection is based on merit / academic performance. No negative marking applies."
+     * "markingScheme.correct": "Merit / Academic Marks"
+     * "markingScheme.incorrect": "No deduction"
+     * "markingScheme.unanswered": "N/A"
+   - If an exam IS conducted:
+     * Check if the notification explicitly specifies negative marking for wrong answers.
+     * If Negative Marking IS PRESENT:
+       - "negativeMarking.enabled": true
+       - "negativeMarking.penalty": Penalty string with minus sign (e.g. "-0.50 marks", "-0.33 marks", "-1/3 mark", "-0.25 marks").
+       - "negativeMarking.penaltyLabel": "for each wrong answer"
+       - "negativeMarking.advice": Exact candidate warning/advice from notification (e.g. "Candidates are advised to avoid guessing." or exact text).
+       - "negativeMarking.text": Full sentence from notification (e.g. "There will be negative marking of 0.50 marks for each wrong answer.").
+       - "markingScheme.correct": Marks awarded for each correct answer (e.g. "+2 marks" or "+1 mark").
+       - "markingScheme.incorrect": Marks deducted for wrong answer (e.g. "-0.50 marks" or "-0.33 marks").
+       - "markingScheme.unanswered": "0 marks"
+     * If Negative Marking is NOT MENTIONED, or notification states "No negative marking" / "There will be no negative marking":
+       - "negativeMarking.enabled": false
+       - "negativeMarking.penalty": "0 marks"
+       - "negativeMarking.penaltyLabel": "no penalty score"
+       - "negativeMarking.text": "No negative marking applies in this examination."
+       - "negativeMarking.advice": "There is no negative marking for incorrect answers."
+       - "markingScheme.correct": Marks awarded for correct answer (e.g. "+1 mark" or "+2 marks").
+       - "markingScheme.incorrect": "No deduction"
+       - "markingScheme.unanswered": "0 marks"
+   - DO NOT ASSUME OR INVENT negative marking if the notification does NOT mention it!
+6. CRITICAL INSTRUCTIONS FOR RAILWAY (RRB) VACANCY TABLES:
    - Check if this notification is from Railway Recruitment Board (RRB) or contains a table titled "VACANCY TABLE", "RRB-wise, Railway/PU-wise & post-wise vacancies", or lists regional RRBs (e.g. Ahmedabad, Ajmer, Prayagraj/Allahabad, Bangalore/Bengaluru, Bhopal, Bhubaneswar, Bilaspur, Chandigarh, Chennai, Gorakhpur, Guwahati, Jammu-Srinagar, Kolkata, Malda, Mumbai, Muzaffarpur, Patna, Ranchi, Secunderabad, Siliguri, Thiruvananthapuram).
    - If it contains an RRB-wise vacancy table:
      * Set "vacancyTableType": "rrb".
@@ -182,15 +206,16 @@ CRITICAL INSTRUCTIONS FOR EXAM PATTERN & PAPERS BREAKDOWN:
      * Set "rrbVacancies": []
 8. EXTRACT APPLICATION FEE DETAILS:
    - Look for sections titled "Application Fee", "Fee", "Examination Fee", "Fee Payment", or any table listing fee amounts.
-   - Extract category-wise fee amounts:
-     * "general": Fee for General/UR/All candidates (e.g. "500", "100")
-     * "sc_st_pwd_female_exsm": Reduced fee for SC/ST/PwBD/Female/Ex-SM/Minorities/EBC (e.g. "250", "0")
-     * "exempted": Fee for fully exempted categories (e.g. "0" or "" if not mentioned separately)
-     * "refundPolicy": Full refund policy text from notification (e.g. "Fee refunded on appearing in 1st Stage CBT")
-     * "paymentMode": Payment mode mentioned (e.g. "Online", "SBI Challan / Net Banking / Debit Card / Credit Card / UPI")
-     * "note": Any additional fee note (e.g. "Only candidates who appear in 1st stage CBT will get refund")
+   - Extract category-wise fee amounts.
    - If no fee is mentioned, set "applicationFee": null.
-9. CRITICAL INSTRUCTIONS FOR SERVICE-WISE / POST-WISE VACANCY DISTRIBUTION & QUALIFICATIONS (SSC, UPSC, CENTRAL MINISTRIES, STATE PSCs):
+9. CRITICAL INSTRUCTIONS FOR RELEVANT FILTER TAGS & BADGES:
+   - Generate an array of 3 to 6 concise, highly searchable tags into "tags":
+     * Qualification tags: e.g. "Graduate" (if graduation/degree required), "Class 12" or "HS" (if 10+2/higher secondary), "Class 10" (if matriculation/10th pass), "Diploma", "Engineering", "ITI", "Teaching", "Medical", "Law", etc.
+     * Organization / Body Acronym: e.g. "SSC", "RRB", "UPSC", "IBPS", "SBI", "RBI", "GDS", "India Post", "DRDO", "ISRO", "Police", "Defence", etc.
+     * Exam Acronym / Code: e.g. "CGL", "CHSL", "MTS", "JE", "NTPC", "ALP", "Group D", "NDA", "CDS", "AFCAT", "CTET", "GDS", "IAS", "IPS", etc.
+     * Category / Scope: e.g. "All India", "National", "Central Govt", "State Govt", etc.
+   - Example tags: ["Class 12", "SSC", "CHSL", "All India"] or ["Graduate", "UPSC", "Civil Services", "IAS"] or ["Class 10", "India Post", "GDS", "All India"] or ["Graduate", "RRB", "NTPC", "Railways"].
+10. CRITICAL INSTRUCTIONS FOR SERVICE-WISE / POST-WISE VACANCY DISTRIBUTION & QUALIFICATIONS (SSC, UPSC, CENTRAL MINISTRIES, STATE PSCs):
    - For non-RRB recruitment (e.g. SSC, UPSC, Central Government Ministries, State PSCs):
      Look for any table or section listing:
      * "Organization", "Post", "Essential Educational Qualifications", "Age limit" (e.g. as in SSC JE, SSC CGL, SSC CHSL notifications where tables list S. No. | Organization | Post | Essential Educational Qualifications | Age limit).
@@ -257,6 +282,7 @@ Return this exact JSON structure:
   "level": "National Level",
   "salary": "Pay scale string e.g. Pay Level-2 (Rs. 19,900 - 63,200)",
   "vacancies": "Total vacancies count as string (e.g. '3712')",
+  "tags": ["Graduate", "SSC", "CHSL", "All India"],
   "notificationDate": "YYYY-MM-DD or null",
   "applicationStartDate": "YYYY-MM-DD or null",
   "applicationLastDate": "YYYY-MM-DD or null",
@@ -410,6 +436,179 @@ Return this exact JSON structure:
 }
 `;
 
+// Helper to generate intelligent, highly relevant tags based on qualification, organization acronyms, and exam codes
+export const generateSmartTags = (data = {}) => {
+  const tags = new Set();
+  const title = String(data.title || "").toLowerCase();
+  const org = String(data.organization || "").toLowerCase();
+  const qual = String(data.educationalQualification || "").toLowerCase();
+  const level = String(data.level || "").toLowerCase();
+  const cat = String(data.category || "").toLowerCase();
+
+  // Combine all service qualifications if present
+  let serviceQuals = "";
+  if (Array.isArray(data.serviceVacancies)) {
+    serviceQuals = data.serviceVacancies
+      .map((s) => `${s.qualification || ""} ${s.post || ""}`)
+      .join(" ")
+      .toLowerCase();
+  }
+  const allQualText = `${qual} ${serviceQuals} ${title}`;
+
+  // 1. Organization & Exam Acronym Tags
+  if (org.includes("staff selection commission") || org === "ssc" || title.includes("ssc")) {
+    tags.add("SSC");
+  }
+  if (org.includes("railway") || org.includes("rrb") || title.includes("rrb") || title.includes("railway")) {
+    tags.add("RRB");
+    tags.add("Railways");
+  }
+  if (org.includes("union public service") || org === "upsc" || title.includes("upsc")) {
+    tags.add("UPSC");
+    tags.add("Civil Services");
+  }
+  if (org.includes("banking personnel selection") || org === "ibps" || title.includes("ibps")) {
+    tags.add("IBPS");
+    tags.add("Banking");
+  }
+  if (org.includes("state bank of india") || org === "sbi" || title.includes("sbi")) {
+    tags.add("SBI");
+    tags.add("Banking");
+  }
+  if (org.includes("reserve bank of india") || org === "rbi" || title.includes("rbi")) {
+    tags.add("RBI");
+    tags.add("Banking");
+  }
+  if (
+    org.includes("post office") ||
+    org.includes("department of post") ||
+    org.includes("india post") ||
+    title.includes("gds") ||
+    title.includes("gramin dak sevak") ||
+    org.includes("gds")
+  ) {
+    tags.add("India Post");
+    tags.add("GDS");
+  }
+  if (org.includes("drdo") || org.includes("defence research")) {
+    tags.add("DRDO");
+    tags.add("Defence");
+  }
+  if (org.includes("isro") || org.includes("space research")) {
+    tags.add("ISRO");
+  }
+  if (org.includes("nta") || org.includes("national testing agency")) {
+    tags.add("NTA");
+  }
+  if (
+    org.includes("police") ||
+    title.includes("police") ||
+    title.includes("constable") ||
+    title.includes("sub inspector") ||
+    title.includes("daroga") ||
+    title.includes("si ")
+  ) {
+    tags.add("Police");
+  }
+  if (
+    org.includes("defence") ||
+    org.includes("defense") ||
+    org.includes("army") ||
+    org.includes("navy") ||
+    org.includes("air force") ||
+    org.includes("airforce") ||
+    title.includes("agniveer")
+  ) {
+    tags.add("Defence");
+  }
+
+  // Specific Exam Titles / Short forms
+  if (/\bcgl\b/i.test(title) || title.includes("combined graduate level")) tags.add("CGL");
+  if (/\bchsl\b/i.test(title) || title.includes("combined higher secondary")) tags.add("CHSL");
+  if (/\bmts\b/i.test(title) || title.includes("multi tasking")) tags.add("MTS");
+  if (/\bntpc\b/i.test(title) || title.includes("non technical popular")) tags.add("NTPC");
+  if (/\balp\b/i.test(title) || title.includes("assistant loco pilot")) tags.add("ALP");
+  if (/group\s*d/i.test(title)) tags.add("Group D");
+  if (/\bje\b/i.test(title) || title.includes("junior engineer")) tags.add("JE");
+  if (/\bnda\b/i.test(title) || title.includes("national defence academy")) tags.add("NDA");
+  if (/\bcds\b/i.test(title) || title.includes("combined defence services")) tags.add("CDS");
+  if (/\bctet\b/i.test(title)) tags.add("CTET");
+  if (/\bgds\b/i.test(title) || title.includes("gramin dak sevak")) tags.add("GDS");
+  if (title.includes("ias") || title.includes("civil services")) tags.add("IAS");
+  if (title.includes("ips")) tags.add("IPS");
+
+  // 2. Educational Qualification Tags
+  if (
+    /graduat|degree|bachelor|b\.tech|btech|b\.e\b|b\.sc|bsc|b\.com|bcom|b\.a\b|bba|bca|post\s*graduat|master|m\.tech|mba|mca/i.test(
+      allQualText
+    )
+  ) {
+    tags.add("Graduate");
+  }
+  if (
+    /12th|10\s*\+\s*2|higher\s*secondary|intermediate|h\.?s\.?\b|12th\s*pass|\+2\s*pass/i.test(
+      allQualText
+    )
+  ) {
+    tags.add("Class 12");
+  }
+  if (
+    /10th|matric|secondary\s*school|high\s*school|10th\s*pass|class\s*10/i.test(
+      allQualText
+    )
+  ) {
+    tags.add("Class 10");
+  }
+  if (/diploma|polytechnic/i.test(allQualText)) {
+    tags.add("Diploma");
+  }
+  if (
+    /engineer|engineering|b\.tech|btech|b\.e\b/i.test(allQualText) ||
+    /engineer|engineering/i.test(title)
+  ) {
+    tags.add("Engineering");
+  }
+  if (/\biti\b|trade\s*certificate|ncvt|scvt/i.test(allQualText)) {
+    tags.add("ITI");
+  }
+  if (
+    /teach|b\.ed|d\.el\.ed|ctet|tet|prt|tgt|pgt|professor|faculty|lecturer/i.test(
+      allQualText
+    ) ||
+    /teach|teacher/i.test(title) ||
+    cat.includes("teaching")
+  ) {
+    tags.add("Teaching");
+  }
+  if (/mbbs|nursing|gnm|anm|pharm|b\.pharm|medical|doctor/i.test(allQualText)) {
+    tags.add("Medical");
+  }
+
+  // 3. Category & Scope Tags
+  if (
+    level.includes("national") ||
+    level.includes("all india") ||
+    org.includes("staff selection") ||
+    org.includes("union public") ||
+    org.includes("railway")
+  ) {
+    tags.add("All India");
+  }
+  if (level.includes("state") || org.includes("state") || cat.includes("state")) {
+    tags.add("State Govt");
+  }
+
+  // Incorporate any raw tags extracted by AI prompt
+  if (Array.isArray(data.tags)) {
+    data.tags.forEach((t) => {
+      if (t && typeof t === "string" && t.trim().length > 1) {
+        tags.add(t.trim());
+      }
+    });
+  }
+
+  return Array.from(tags).slice(0, 7);
+};
 
 export const parsePdfWithAI = async (req, res) => {
   try {
@@ -548,57 +747,83 @@ export const parsePdfWithAI = async (req, res) => {
 
           // Normalize negativeMarking
           const rawNm = stage.negativeMarking || {};
-          let penalty = String(rawNm.penalty || rawNm.penaltyMarks || rawNm.penalty_marks || "");
-          if (!penalty && rawNm.label) {
-            const m = rawNm.label.match(/[\d.]+\s*marks?/i);
-            if (m) penalty = m[0];
-          }
-          if (penalty && !penalty.startsWith("-") && !penalty.startsWith("+")) {
-            penalty = `-${penalty}`;
-          }
-          if (penalty && !penalty.toLowerCase().includes("mark")) {
-            penalty = `${penalty} marks`;
-          }
+          let rawPenalty = String(rawNm.penalty || rawNm.penaltyMarks || rawNm.penalty_marks || "").trim();
+          let rawText = String(rawNm.text || rawNm.label || "").trim();
+          let rawAdvice = String(rawNm.advice || rawNm.candidateAdvice || rawNm.candidate_advice || "").trim();
 
-          let advice = String(rawNm.advice || rawNm.candidateAdvice || rawNm.candidate_advice || "");
-          let nmText = String(rawNm.text || rawNm.label || "");
-          if (nmText && !advice && nmText.toLowerCase().includes("advised")) {
-            advice = nmText;
-          }
-          if (!advice && penalty) {
-            advice = "Candidates are, therefore, advised to keep this in mind while answering the questions.";
+          // Check if explicitly marked as no negative marking or merit based
+          const isExplicitlyNoNegative =
+            rawNm.enabled === false ||
+            /no\s+negative|without\s+negative|nil|none|no\s+penalty|no\s+deduction|merit\s+basis|not\s+applicable/i.test(rawPenalty) ||
+            /no\s+negative|without\s+negative|there\s+will\s+be\s+no\s+negative|no\s+penalty|no\s+marks?\s+will\s+be\s+deducted|merit\s+basis|not\s+applicable/i.test(rawText) ||
+            rawPenalty === "0" ||
+            rawPenalty === "0 marks" ||
+            rawPenalty === "-0" ||
+            rawPenalty === "-0 marks" ||
+            rawPenalty === "0.00" ||
+            stageKey === "interview";
+
+          let hasNegativeMarking = false;
+          let penalty = "0 marks";
+          let penaltyLabel = "no penalty score";
+          let text = rawText || (stageKey === "interview" ? "No negative marking applies during interview / personality test." : "No negative marking applies for this stage.");
+          let advice = rawAdvice || (stageKey === "interview" ? "Honesty, composure, and clear communication are key." : "There is no negative marking for incorrect answers.");
+
+          if (!isExplicitlyNoNegative && rawPenalty && rawPenalty !== "N/A") {
+            const numMatch = rawPenalty.match(/(\d+(?:\.\d+)?|\d+\/\d+)/);
+            if (numMatch && parseFloat(numMatch[1]) > 0) {
+              hasNegativeMarking = true;
+              penalty = rawPenalty;
+              if (!penalty.startsWith("-") && !penalty.startsWith("+")) {
+                penalty = `-${penalty}`;
+              }
+              if (!penalty.toLowerCase().includes("mark")) {
+                penalty = `${penalty} marks`;
+              }
+              penaltyLabel = String(rawNm.penaltyLabel || "for each wrong answer");
+              text = rawText || `There will be negative marking of ${penalty.replace("-", "")} for each wrong answer.`;
+              advice = rawAdvice || "Candidates are advised to avoid guessing.";
+            }
           }
 
           stage.negativeMarking = {
-            penalty: penalty || "-0.50 marks",
-            advice: advice || "Candidates are advised to avoid guessing.",
-            text: nmText || (penalty ? `There will be negative marking of ${penalty.replace("-", "")} for each wrong answer.` : ""),
-            penaltyLabel: String(rawNm.penaltyLabel || "for each wrong answer"),
-            enabled: Boolean(penalty && penalty !== "0" && penalty !== "-0"),
+            penalty: hasNegativeMarking ? penalty : "0 marks",
+            advice: advice,
+            text: text,
+            penaltyLabel: penaltyLabel,
+            enabled: hasNegativeMarking,
           };
 
           // Normalize markingScheme
           const rawMs = stage.markingScheme || {};
-          let correct = String(rawMs.correct || rawMs.correctMarks || rawMs.correct_marks || "");
-          if (correct && !correct.startsWith("+") && !correct.startsWith("-")) {
+          let correct = String(rawMs.correct || rawMs.correctMarks || rawMs.correct_marks || "").trim();
+          if (correct && !correct.startsWith("+") && !correct.startsWith("-") && /^\d/.test(correct)) {
             correct = `+${correct}`;
           }
-          if (correct && !correct.toLowerCase().includes("mark")) {
+          if (correct && /^[+-]?\d+(?:\.\d+)?$/.test(correct)) {
             correct = `${correct} marks`;
           }
 
-          let incorrect = String(rawMs.incorrect || rawMs.incorrectMarks || penalty || "");
-          if (incorrect && !incorrect.startsWith("-")) {
-            incorrect = `-${incorrect}`;
-          }
-          if (incorrect && !incorrect.toLowerCase().includes("mark")) {
-            incorrect = `${incorrect} marks`;
+          let incorrect = String(rawMs.incorrect || rawMs.incorrectMarks || "").trim();
+          if (hasNegativeMarking) {
+            if (!incorrect || /no\s+deduction|0|0\s*marks?/i.test(incorrect)) {
+              incorrect = penalty;
+            } else {
+              if (!incorrect.startsWith("-") && /^\d/.test(incorrect)) {
+                incorrect = `-${incorrect}`;
+              }
+              if (/^-\d+(?:\.\d+)?$/.test(incorrect)) {
+                incorrect = `${incorrect} marks`;
+              }
+            }
+          } else {
+            incorrect = incorrect && !incorrect.startsWith("-") ? incorrect : "No deduction";
           }
 
           stage.markingScheme = {
-            correct: correct || "+2 marks",
-            incorrect: incorrect || (penalty || "-0.50 marks"),
-            unanswered: String(rawMs.unanswered || "0 marks"),
+            correct: correct || (stageKey === "interview" ? "Interview Evaluation" : "+1 mark"),
+            incorrect: incorrect,
+            unanswered: String(rawMs.unanswered || (stageKey === "interview" ? "N/A" : "0 marks")),
             totalMarks: String(rawMs.totalMarks || ""),
           };
         }
@@ -783,7 +1008,9 @@ export const parsePdfWithAI = async (req, res) => {
       parsedData.serviceVacancies = [];
     }
 
-    // Step 9: Default Media Branding if organization matches SSC or other known bodies
+    // Step 9: Generate Smart Tags & Default Media Branding
+    parsedData.tags = generateSmartTags(parsedData);
+
     if (parsedData.organization) {
       const orgLower = parsedData.organization.toLowerCase();
       if (orgLower.includes("staff selection commission") || orgLower === "ssc") {
@@ -795,7 +1022,6 @@ export const parsePdfWithAI = async (req, res) => {
     }
 
     return res.status(200).json({
-
       success: true,
       message: "PDF parsed successfully",
       pdfUrl,
