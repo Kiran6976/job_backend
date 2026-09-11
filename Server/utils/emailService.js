@@ -4,8 +4,46 @@ import { User } from "../model/user.model.js";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const resend = new Resend(RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "The Workflow <notifications@theworkflow.online>";
-const SITE_URL = process.env.CLIENT_URL || "https://theworkflow.online";
+const getSiteUrl = () => {
+  if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/+$/, "");
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/+$/, "");
+
+  if (process.env.CLIENT_URL) {
+    const urls = process.env.CLIENT_URL.split(",").map((u) => u.trim());
+    const prodUrl = urls.find(
+      (u) =>
+        (u.includes("theworkflow.online") || u.includes("vercel.app") || u.startsWith("https://")) &&
+        !u.includes("localhost")
+    );
+    if (prodUrl) return prodUrl.replace(/\/+$/, "");
+  }
+
+  return "https://www.theworkflow.online";
+};
+
+const SITE_URL = getSiteUrl();
+
+const formatEmailDate = (dateStr, fallback = "Check Notification") => {
+  if (!dateStr) return fallback;
+  try {
+    if (dateStr.includes("-") && dateStr.length >= 10) {
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+        }
+      }
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+};
 
 const BLOCKED_DOMAINS = new Set([
   "example.com",
@@ -95,6 +133,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       width: 100%;
       background-color: #f8fafc;
       padding: 36px 12px;
+      box-sizing: border-box;
     }
     .container {
       max-width: 580px;
@@ -245,6 +284,13 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
       text-decoration: none;
       margin: 0 8px;
     }
+    @media only screen and (max-width: 520px) {
+      .wrapper { padding: 12px 6px !important; }
+      .container { width: 100% !important; border-radius: 12px !important; }
+      .header { padding: 24px 18px !important; }
+      .body { padding: 20px 16px !important; }
+      .cta-btn { width: 100% !important; box-sizing: border-box !important; }
+    }
   </style>
 </head>
 <body>
@@ -360,8 +406,9 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
   const vacanciesText = job.vacancies ? `${job.vacancies}` : "Multiple Vacancies";
   const salaryText = job.salary ? `${job.salary}` : "As per Government / Industry Norms";
   const locationText = job.location ? `${job.location}` : "All India / Multiple Locations";
-  const lastDateText = job.applicationLastDate || job.notificationDate || "Check Notification";
-  const qualificationText = job.educationalQualification || "Refer to detailed notification";
+  const lastDateRaw = job.applicationLastDate || job.notificationDate;
+  const lastDateText = formatEmailDate(lastDateRaw, "Check Notification");
+  const qualificationText = job.educationalQualification || "Refer to detailed official notification";
   const categoryText = job.category || "Government Exams";
   const selectionStagesText = job.selectionStages || "As per official notification";
 
@@ -380,11 +427,13 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: #1e293b;
       line-height: 1.6;
+      -webkit-text-size-adjust: 100%;
     }
     .wrapper {
       width: 100%;
       background-color: #f1f5f9;
-      padding: 36px 12px;
+      padding: 32px 12px;
+      box-sizing: border-box;
     }
     .container {
       max-width: 600px;
@@ -397,7 +446,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
     }
     .header {
       background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
-      padding: 32px 28px;
+      padding: 32px 24px;
       text-align: center;
       color: #ffffff;
     }
@@ -414,7 +463,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       margin-bottom: 12px;
     }
     .org-title {
-      font-size: 14px;
+      font-size: 13.5px;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: #93c5fd;
@@ -422,11 +471,12 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       font-weight: 600;
     }
     .job-title {
-      font-size: 22px;
+      font-size: 21px;
       font-weight: 800;
       margin: 0 0 8px;
-      line-height: 1.3;
+      line-height: 1.35;
       color: #ffffff;
+      word-break: break-word;
     }
     .header-sub {
       font-size: 13px;
@@ -435,6 +485,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
     }
     .body {
       padding: 28px 24px;
+      box-sizing: border-box;
     }
     .greeting {
       font-size: 17px;
@@ -446,13 +497,16 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       font-size: 14.5px;
       color: #475569;
       margin: 0 0 20px;
+      line-height: 1.6;
     }
     .job-card {
       background-color: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 12px;
-      padding: 20px;
+      padding: 18px 16px;
       margin-bottom: 24px;
+      box-sizing: border-box;
+      width: 100%;
     }
     .job-card-header {
       border-bottom: 1px dashed #cbd5e1;
@@ -463,7 +517,9 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       font-size: 16px;
       font-weight: 700;
       color: #1e293b;
-      margin: 0 0 4px;
+      margin: 0 0 6px;
+      line-height: 1.35;
+      word-break: break-word;
     }
     .job-card-category {
       display: inline-block;
@@ -474,23 +530,63 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       padding: 2px 8px;
       border-radius: 4px;
     }
-    .details-table {
+    .info-list {
       width: 100%;
-      border-collapse: collapse;
+      box-sizing: border-box;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f5f9;
       font-size: 13.5px;
+      box-sizing: border-box;
     }
-    .details-table td {
-      padding: 6px 0;
-      vertical-align: top;
-    }
-    .details-table td.label {
+    .info-row-label {
       color: #64748b;
       font-weight: 600;
-      width: 38%;
+      font-size: 13px;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
-    .details-table td.value {
+    .info-row-value {
       color: #0f172a;
       font-weight: 600;
+      text-align: right;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .info-block {
+      display: block;
+      padding: 10px 0;
+      border-bottom: 1px solid #f1f5f9;
+      box-sizing: border-box;
+    }
+    .info-block:last-child {
+      border-bottom: none;
+    }
+    .info-block-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .info-block-value {
+      display: block;
+      font-size: 13px;
+      color: #1e293b;
+      font-weight: 500;
+      line-height: 1.55;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .cta-container {
       text-align: center;
@@ -506,6 +602,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       padding: 13px 36px;
       border-radius: 999px;
       box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      text-align: center;
     }
     .footer {
       background-color: #f8fafc;
@@ -519,6 +616,19 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       color: #64748b;
       text-decoration: none;
       margin: 0 8px;
+    }
+    @media only screen and (max-width: 520px) {
+      .wrapper { padding: 10px 6px !important; }
+      .container { width: 100% !important; border-radius: 12px !important; }
+      .header { padding: 22px 16px !important; }
+      .job-title { font-size: 18px !important; }
+      .body { padding: 18px 14px !important; }
+      .job-card { padding: 14px 12px !important; }
+      .info-row { flex-direction: column !important; align-items: flex-start !important; gap: 2px !important; padding: 6px 0 !important; }
+      .info-row-label { font-size: 12px !important; }
+      .info-row-value { text-align: left !important; font-size: 13.5px !important; }
+      .cta-button { width: 100% !important; box-sizing: border-box !important; padding: 12px 16px !important; font-size: 14px !important; }
+      .direct-link { word-break: break-all !important; }
     }
   </style>
 </head>
@@ -535,7 +645,7 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
       <div class="body">
         <h2 class="greeting">Hi ${firstName},</h2>
         <p class="text">
-          A new career opportunity matching recent notifications has just been posted on <strong>The Workflow</strong>. Check the details below and apply before the deadline!
+          A new career opportunity has just been announced on <strong>The Workflow</strong>. Check the details below and apply before the deadline!
         </p>
 
         <div class="job-card">
@@ -544,44 +654,45 @@ const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
             <span class="job-card-category">${categoryText}</span>
           </div>
 
-          <table class="details-table">
-            <tr>
-              <td class="label">🏢 Organization:</td>
-              <td class="value">${job.organization}</td>
-            </tr>
-            <tr>
-              <td class="label">👥 Total Vacancies:</td>
-              <td class="value">${vacanciesText}</td>
-            </tr>
-            <tr>
-              <td class="label">💰 Salary / Pay Scale:</td>
-              <td class="value">${salaryText}</td>
-            </tr>
-            <tr>
-              <td class="label">📍 Location:</td>
-              <td class="value">${locationText}</td>
-            </tr>
-            <tr>
-              <td class="label">⏳ Last Date to Apply:</td>
-              <td class="value" style="color: #dc2626;">${lastDateText}</td>
-            </tr>
-            <tr>
-              <td class="label">🎓 Qualification:</td>
-              <td class="value">${qualificationText}</td>
-            </tr>
-            <tr>
-              <td class="label">🎯 Selection Process:</td>
-              <td class="value">${selectionStagesText}</td>
-            </tr>
-          </table>
+          <div class="info-list">
+            <div class="info-row">
+              <span class="info-row-label">🏢 Organization:</span>
+              <span class="info-row-value">${job.organization}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">👥 Total Vacancies:</span>
+              <span class="info-row-value">${vacanciesText}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">💰 Salary / Pay Scale:</span>
+              <span class="info-row-value">${salaryText}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">📍 Location:</span>
+              <span class="info-row-value">${locationText}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">⏳ Last Date to Apply:</span>
+              <span class="info-row-value" style="color: #dc2626;">${lastDateText}</span>
+            </div>
+            <div class="info-block">
+              <span class="info-block-label">🎓 Educational Qualification:</span>
+              <div class="info-block-value">${qualificationText}</div>
+            </div>
+            <div class="info-block">
+              <span class="info-block-label">🎯 Selection Process:</span>
+              <div class="info-block-value">${selectionStagesText}</div>
+            </div>
+          </div>
         </div>
 
         <div class="cta-container">
           <a href="${jobUrl}" class="cta-button">View Details &amp; Apply Now &rarr;</a>
         </div>
 
-        <p class="text" style="font-size: 12.5px; color: #64748b; text-align: center; margin-top: 20px;">
-          Direct Application Link: <a href="${jobUrl}" style="color: #2563eb;">${jobUrl}</a>
+        <p class="text" style="font-size: 12px; color: #64748b; text-align: center; margin-top: 20px;">
+          Direct Application Link:<br />
+          <a href="${jobUrl}" class="direct-link" style="color: #2563eb; word-break: break-all;">${jobUrl}</a>
         </p>
       </div>
 
