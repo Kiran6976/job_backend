@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { OAuth2Client } from "google-auth-library";
+import { sendWelcomeEmail } from "../utils/emailService.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -85,6 +86,13 @@ export const register = async (req, res) => {
       profile: newUser.profile,
       createdAt: newUser.createdAt,
     };
+
+    // Asynchronously send welcome email via Resend
+    sendWelcomeEmail({
+      email: newUser.email,
+      name: newUser.fullname,
+      loginMethod: "Account Registration",
+    }).catch((err) => console.error("Welcome email error (register):", err));
 
     return res.status(201).json({
       success: true,
@@ -172,6 +180,13 @@ export const login = async (req, res) => {
       role: user.role,
       profile: user.profile,
     };
+
+    // Asynchronously send welcome email via Resend
+    sendWelcomeEmail({
+      email: user.email,
+      name: user.fullname,
+      loginMethod: "Email & Password",
+    }).catch((err) => console.error("Welcome email error (manual login):", err));
 
     return res
       .status(200)
@@ -431,6 +446,13 @@ export const googleAuth = async (req, res) => {
       role: user.role,
       profile: user.profile,
     };
+
+    // Asynchronously send welcome email via Resend
+    sendWelcomeEmail({
+      email: user.email,
+      name: user.fullname,
+      loginMethod: "Google Account",
+    }).catch((err) => console.error("Welcome email error (Google Sign In):", err));
 
     return res
       .status(200)

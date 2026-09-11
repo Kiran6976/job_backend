@@ -6,6 +6,7 @@ import {
   uploadBannerToCloudinary,
   uploadPdfToCloudinary,
 } from "../utils/cloudinary.js";
+import { broadcastNewJobNotification } from "../utils/emailService.js";
 
 // Initial seed categories matching Top Opportunities
 const DEFAULT_CATEGORIES = [
@@ -534,6 +535,11 @@ export const createJob = async (req, res) => {
         { $inc: { count: 1 } }
       );
     }
+
+    // Broadcast email notification asynchronously to all registered active users
+    broadcastNewJobNotification({ job: newJob }).catch((err) =>
+      console.error("[Email] Error broadcasting new job notification:", err)
+    );
 
     return res.status(201).json({
       success: true,
