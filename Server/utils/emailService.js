@@ -4,6 +4,8 @@ import { User } from "../model/user.model.js";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const resend = new Resend(RESEND_API_KEY);
 
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "The Workflow <notifications@theworkflow.online>";
+
 const getSiteUrl = () => {
   if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/+$/, "");
   if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/+$/, "");
