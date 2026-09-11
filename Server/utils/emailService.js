@@ -7,6 +7,48 @@ const resend = new Resend(RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "The Workflow <notifications@theworkflow.online>";
 const SITE_URL = process.env.CLIENT_URL || "https://theworkflow.online";
 
+const BLOCKED_DOMAINS = new Set([
+  "example.com",
+  "example.org",
+  "example.net",
+  "test.com",
+  "test.org",
+  "test.net",
+  "dummy.com",
+  "sample.com",
+  "fake.com",
+  "invalid.com",
+  "localhost",
+  "none.com",
+  "mailinator.com",
+  "tempmail.com",
+]);
+
+/**
+ * Validate that an email address is properly formatted and does not use fake/test domains
+ * @param {string} email
+ * @returns {boolean}
+ */
+export const isValidRecipientEmail = (email) => {
+  if (!email || typeof email !== "string") return false;
+  const trimmed = email.trim().toLowerCase();
+
+  // Basic regex check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmed)) return false;
+
+  const parts = trimmed.split("@");
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+
+  if (BLOCKED_DOMAINS.has(domain)) return false;
+  if (domain.endsWith(".example") || domain.endsWith(".test") || domain.endsWith(".local") || domain.endsWith(".invalid")) {
+    return false;
+  }
+
+  return true;
+};
+
 /**
  * Send a welcome email to the user upon successful login or registration
  * @param {Object} params
@@ -15,7 +57,10 @@ const SITE_URL = process.env.CLIENT_URL || "https://theworkflow.online";
  * @param {string} [params.loginMethod] - "Google Account" or "Email & Password"
  */
 export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Password" }) => {
-  if (!email) return;
+  if (!isValidRecipientEmail(email)) {
+    console.log(`[Resend] Skipping welcome email for invalid/test address: ${email}`);
+    return { success: false, message: "Invalid email" };
+  }
 
   const displayName = name || "there";
   const firstName = displayName.split(" ")[0] || "there";
@@ -568,29 +613,53 @@ export const broadcastNewJobNotification = async ({ job }) => {
 
   try {
     // 1. Fetch all registered and active users
-    const users = await User.find({
+    const rawUsers = await User.find({
       status: { $ne: "suspended" },
       email: { $exists: true, $ne: "" },
     })
       .select("email fullname")
       .lean();
 
-    if (!users || users.length === 0) {
+    if (!rawUsers || rawUsers.length === 0) {
       console.log("[Resend] No active registered users found to notify.");
       return { success: true, count: 0 };
     }
 
-    console.log(`[Resend] Broadcasting new job alert '${job.title}' to ${users.length} registered user(s)...`);
+    // 2. Deduplicate and filter only valid recipient emails
+    const seenEmails = new Set();
+    const validUsers = [];
+
+    for (const u of rawUsers) {
+      if (u.email && isValidRecipientEmail(u.email)) {
+        const normalized = u.email.trim().toLowerCase();
+        if (!seenEmails.has(normalized)) {
+          seenEmails.add(normalized);
+          validUsers.push({
+            email: normalized,
+            fullname: u.fullname || "Aspirant",
+          });
+        }
+      } else {
+        console.log(`[Resend] Skipping test/invalid email: ${u.email}`);
+      }
+    }
+
+    if (validUsers.length === 0) {
+      console.log("[Resend] No valid recipient email addresses found after filtering test/dummy accounts.");
+      return { success: true, count: 0 };
+    }
+
+    console.log(`[Resend] Broadcasting new job alert '${job.title}' to ${validUsers.length} valid registered user(s)...`);
 
     const subject = `📢 New Job Alert: ${job.title} - ${job.organization} | The Workflow`;
+    let totalSent = 0;
 
-    // 2. Check if batch API is available on resend instance
+    // 3. Batch send with Resend Batch API if available
     if (resend.batch && typeof resend.batch.send === "function") {
-      const BATCH_SIZE = 100;
-      let totalSent = 0;
+      const BATCH_SIZE = 50;
 
-      for (let i = 0; i < users.length; i += BATCH_SIZE) {
-        const chunk = users.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < validUsers.length; i += BATCH_SIZE) {
+        const chunk = validUsers.slice(i, i + BATCH_SIZE);
         const emailBatch = chunk.map((user) => ({
           from: FROM_EMAIL,
           to: [user.email],
@@ -603,28 +672,24 @@ export const broadcastNewJobNotification = async ({ job }) => {
           totalSent += emailBatch.length;
           console.log(`[Resend] Successfully sent batch ${Math.floor(i / BATCH_SIZE) + 1} (${emailBatch.length} emails).`);
         } catch (batchErr) {
-          console.error(`[Resend] Batch send failed for chunk starting at index ${i}:`, batchErr?.message || batchErr);
+          console.error(`[Resend] Batch send failed for chunk:`, batchErr?.message || batchErr);
           // Fallback to sending individually for this chunk
           for (const item of emailBatch) {
             try {
               await resend.emails.send(item);
               totalSent++;
+              console.log(`[Resend] Sent fallback single email to ${item.to}`);
             } catch (singleErr) {
               console.error(`[Resend] Single email failed to ${item.to}:`, singleErr?.message || singleErr);
             }
           }
         }
       }
-
-      console.log(`[Resend] Job broadcast completed. Sent to ${totalSent}/${users.length} user(s).`);
-      return { success: true, count: totalSent };
     } else {
-      // Fallback if batch API is not present
-      let totalSent = 0;
-      // Send in concurrent chunks of 5
+      // 4. Send individually in chunks of 5
       const CHUNK_SIZE = 5;
-      for (let i = 0; i < users.length; i += CHUNK_SIZE) {
-        const chunk = users.slice(i, i + CHUNK_SIZE);
+      for (let i = 0; i < validUsers.length; i += CHUNK_SIZE) {
+        const chunk = validUsers.slice(i, i + CHUNK_SIZE);
         await Promise.allSettled(
           chunk.map(async (user) => {
             try {
@@ -635,16 +700,17 @@ export const broadcastNewJobNotification = async ({ job }) => {
                 html: generateNewJobEmailHtml({ job, recipientName: user.fullname }),
               });
               totalSent++;
+              console.log(`[Resend] Sent email to ${user.email}`);
             } catch (err) {
               console.error(`[Resend] Failed to send job alert to ${user.email}:`, err?.message || err);
             }
           })
         );
       }
-
-      console.log(`[Resend] Job broadcast completed. Sent to ${totalSent}/${users.length} user(s).`);
-      return { success: true, count: totalSent };
     }
+
+    console.log(`[Resend] Job broadcast finished. Successfully sent to ${totalSent}/${validUsers.length} user(s).`);
+    return { success: true, count: totalSent };
   } catch (error) {
     console.error("[Resend] Error in broadcastNewJobNotification:", error?.message || error);
     return { success: false, error: error?.message || error };
