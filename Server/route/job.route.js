@@ -8,6 +8,7 @@ import {
   createJob,
   updateJob,
   deleteJob,
+  toggleArchiveJob,
   getAllOrganizations,
   createOrganization,
   updateOrganization,
@@ -46,6 +47,9 @@ router.route("/detail/:id").get(getJobById);
 router.route("/create").post(createJob);
 router.route("/notify/:id").post(notifyJobPosting);
 router.route("/:id/notify").post(notifyJobPosting);
+router.route("/archive/:id").post(toggleArchiveJob);
+router.route("/:id/archive").post(toggleArchiveJob);
 router.route("/:id").put(updateJob).delete(deleteJob);
 
 export default router;
+

@@ -375,9 +375,43 @@ const checkTagsMatch = (tags, searchTokens, rawQuery) => {
   return tags.some((tag) => checkTextMatch(tag, searchTokens, rawQuery));
 };
 
+export const isJobDateExpired = (job) => {
+  if (!job) return false;
+  if (job.isArchived === true) return true;
+  if (!job.applicationLastDate) return false;
+
+  const str = String(job.applicationLastDate).trim();
+  if (
+    !str ||
+    ["n/a", "none", "tentative", "to be announced", "will be announced soon"].includes(
+      str.toLowerCase()
+    )
+  ) {
+    return false;
+  }
+
+  // YYYY-MM-DD format
+  const ymdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (ymdMatch) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    const d = new Date(year, month, day, 23, 59, 59, 999);
+    return d.getTime() < Date.now();
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    parsed.setHours(23, 59, 59, 999);
+    return parsed.getTime() < Date.now();
+  }
+
+  return false;
+};
+
 export const getAllJobs = async (req, res) => {
   try {
-    const { type, category, q, search } = req.query;
+    const { type, category, q, search, includeArchived, archivedOnly } = req.query;
     const query = { isActive: true };
 
     if (type && type !== "all") {
@@ -389,6 +423,14 @@ export const getAllJobs = async (req, res) => {
     }
 
     let jobs = await Job.find(query).sort({ createdAt: -1 });
+
+    // Handle archive & expiration filtering
+    if (archivedOnly === "true") {
+      jobs = jobs.filter((j) => isJobDateExpired(j));
+    } else if (includeArchived !== "true") {
+      // For general public site queries, only return active non-expired jobs
+      jobs = jobs.filter((j) => !isJobDateExpired(j));
+    }
 
     const rawKeyword = (q || search || "").trim();
     if (rawKeyword) {
@@ -432,6 +474,25 @@ export const getAllJobs = async (req, res) => {
       success: false,
       message: error.message || "Failed to fetch job postings.",
     });
+  }
+};
+
+export const toggleArchiveJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await Job.findById(id);
+    if (!job) {
+      return res.status(404).json({ success: false, message: "Job not found." });
+    }
+    job.isArchived = !job.isArchived;
+    await job.save();
+    return res.status(200).json({
+      success: true,
+      message: `Job ${job.isArchived ? "archived" : "restored"} successfully.`,
+      job,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
