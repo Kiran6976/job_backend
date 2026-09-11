@@ -15,6 +15,7 @@ import {
   uploadLogo,
   uploadBanner,
   uploadNotificationPdf,
+  notifyJobPosting,
 } from "../controller/job.controller.js";
 import { parsePdfWithAI } from "../controller/pdfParser.controller.js";
 import { singleUpload, pdfUpload } from "../middleware/multer.js";
@@ -43,6 +44,8 @@ router.route("/organization/:id").put(updateOrganization).delete(deleteOrganizat
 router.route("/all").get(getAllJobs);
 router.route("/detail/:id").get(getJobById);
 router.route("/create").post(createJob);
+router.route("/notify/:id").post(notifyJobPosting);
+router.route("/:id/notify").post(notifyJobPosting);
 router.route("/:id").put(updateJob).delete(deleteJob);
 
 export default router;

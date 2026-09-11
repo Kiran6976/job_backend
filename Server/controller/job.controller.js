@@ -649,6 +649,41 @@ export const deleteJob = async (req, res) => {
   }
 };
 
+export const notifyJobPosting = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await Job.findById(id);
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job opportunity not found.",
+      });
+    }
+
+    const result = await broadcastNewJobNotification({ job });
+
+    if (!result.success && result.error) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to broadcast notification: ${result.error?.message || result.error}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Email alert broadcasted to ${result.count || 0} registered user(s)!`,
+      count: result.count || 0,
+    });
+  } catch (error) {
+    console.error("Error broadcasting job email:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to broadcast email notifications.",
+    });
+  }
+};
+
 // ==========================================
 // ORGANIZATIONS & PROVIDERS
 // ==========================================
