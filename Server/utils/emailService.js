@@ -830,3 +830,212 @@ export const broadcastNewJobNotification = async ({ job }) => {
   }
 };
 
+/**
+ * Send an OTP verification email for account registration
+ * @param {Object} params
+ * @param {string} params.email - Recipient email
+ * @param {string} params.otp - 6-digit verification code
+ * @param {string} [params.name] - User full name
+ */
+export const sendOtpEmail = async ({ email, otp, name = "Aspirant" }) => {
+  if (!isValidRecipientEmail(email)) {
+    console.log(`[Resend] Skipping OTP email for invalid/test address: ${email}`);
+    return { success: false, message: "Invalid email" };
+  }
+
+  const displayName = name ? name.split(" ")[0] : "there";
+
+  const emailHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Verification Code - The Workflow</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f8fafc;
+      padding: 36px 12px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 540px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+      padding: 32px 28px;
+      text-align: center;
+      color: #ffffff;
+    }
+    .header-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .header-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 0 6px;
+      color: #ffffff;
+    }
+    .header-sub {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      margin: 0;
+    }
+    .body {
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .greeting {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 12px;
+      text-align: left;
+    }
+    .text {
+      font-size: 14.5px;
+      color: #475569;
+      margin: 0 0 24px;
+      line-height: 1.6;
+      text-align: left;
+    }
+    .otp-card {
+      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+      border: 2px dashed #93c5fd;
+      border-radius: 14px;
+      padding: 24px 16px;
+      margin: 20px 0 24px;
+      text-align: center;
+    }
+    .otp-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #3b82f6;
+      margin-bottom: 8px;
+    }
+    .otp-code {
+      font-family: 'Courier New', Courier, monospace, monospace;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 8px;
+      color: #1e3a8a;
+      padding: 6px 0;
+      user-select: all;
+    }
+    .otp-hint {
+      font-size: 12.5px;
+      color: #64748b;
+      margin-top: 6px;
+    }
+    .expiry-note {
+      display: inline-flex;
+      align-items: center;
+      background-color: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .security-notice {
+      border-top: 1px solid #f1f5f9;
+      padding-top: 20px;
+      font-size: 12.5px;
+      color: #94a3b8;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .footer {
+      background-color: #f8fafc;
+      padding: 20px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <div class="header-badge">The Workflow</div>
+        <h1 class="header-title">Verify Your Email</h1>
+        <p class="header-sub">Complete your account registration</p>
+      </div>
+
+      <div class="body">
+        <h2 class="greeting">Hello ${displayName},</h2>
+        <p class="text">
+          Thank you for signing up on <strong>The Workflow</strong>. To complete your registration and verify your email address, please use the 6-digit verification code below:
+        </p>
+
+        <div class="otp-card">
+          <div class="otp-label">Verification Code</div>
+          <div class="otp-code">${otp}</div>
+          <div class="otp-hint">Enter this code in the verification screen to proceed</div>
+        </div>
+
+        <div class="expiry-note">
+          ⏱️ This code is valid for <strong>10 minutes</strong>.
+        </div>
+
+        <div class="security-notice">
+          <strong>Security Tip:</strong> Never share this verification code with anyone. The Workflow team will never ask for your verification code or password. If you did not initiate this request, you can safely ignore this email.
+        </div>
+      </div>
+
+      <div class="footer">
+        <p style="margin: 0;">&copy; ${new Date().getFullYear()} The Workflow. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  try {
+    const data = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [email],
+      subject: `${otp} is your verification code - The Workflow`,
+      html: emailHtml,
+    });
+    console.log(`[Resend] OTP email sent to ${email} (ID: ${data?.data?.id || data?.id || "OK"})`);
+    return { success: true, data };
+  } catch (error) {
+    console.error(`[Resend] Failed to send OTP email to ${email}:`, error?.message || error);
+    return { success: false, error };
+  }
+};
+
+

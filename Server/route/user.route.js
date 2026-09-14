@@ -1,5 +1,9 @@
 import express from "express";
 import {
+  sendOtp,
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  resendPhoneOtpController,
   register,
   login,
   logout,
@@ -17,6 +21,10 @@ import { singleUpload } from "../middleware/multer.js";
 
 const router = express.Router();
 
+router.route("/send-otp").post(sendOtp);
+router.route("/send-phone-otp").post(sendPhoneOtp);
+router.route("/verify-phone-otp").post(verifyPhoneOtp);
+router.route("/resend-phone-otp").post(resendPhoneOtpController);
 router.route("/register").post(singleUpload, register);
 router.route("/login").post(login);
 router.route("/google-auth").post(googleAuth);

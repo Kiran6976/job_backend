@@ -1,9 +1,17 @@
 import { User } from "../model/user.model.js";
+import { Otp } from "../model/otp.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { OAuth2Client } from "google-auth-library";
-import { sendWelcomeEmail } from "../utils/emailService.js";
+import { sendWelcomeEmail, sendOtpEmail } from "../utils/emailService.js";
+import {
+  sendSmsOtp,
+  verifySmsOtp,
+  resendSmsOtp,
+  normalizePhoneNumber,
+  isValidPhoneNumber,
+} from "../utils/smsService.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -21,18 +29,17 @@ const getAuthCookieOptions = () => {
   };
 };
 
-
 // ==========================================
-// REGISTER
+// SEND SIGNUP EMAIL OTP
 // ==========================================
-export const register = async (req, res) => {
+export const sendOtp = async (req, res) => {
   try {
-    const { fullname, email, phoneNumber, password, role } = req.body;
+    const { email, fullname } = req.body;
 
-    if (!fullname || !email || !password) {
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Full name, email, and password are required.",
+        message: "Email address is required.",
       });
     }
 
@@ -43,8 +50,300 @@ export const register = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
+        message: "An account with this email address already exists. Please log in.",
+      });
+    }
+
+    // Generate random 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Remove any previous OTP for this email and save new one
+    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.create({
+      email: normalizedEmail,
+      otp,
+    });
+
+    // Send email with verification code
+    const emailResult = await sendOtpEmail({
+      email: normalizedEmail,
+      otp,
+      name: fullname || "Aspirant",
+    });
+
+    if (!emailResult.success) {
+      console.warn(`[OTP] Email delivery failed for ${normalizedEmail}, but OTP stored.`);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Verification code sent to ${normalizedEmail}.`,
+    });
+  } catch (error) {
+    console.error("Send OTP error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send verification code. Please try again.",
+    });
+  }
+};
+
+// ==========================================
+// SEND PHONE NUMBER OTP (MSG91 SMS)
+// ==========================================
+export const sendPhoneOtp = async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required.",
+      });
+    }
+
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid 10-digit mobile number.",
+      });
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store in Otp collection
+    await Otp.deleteMany({ phone: normalizedPhone });
+    await Otp.create({
+      phone: normalizedPhone,
+      otp,
+    });
+
+    // Dispatch SMS via MSG91
+    const smsResult = await sendSmsOtp({
+      phoneNumber: normalizedPhone,
+      otp,
+    });
+
+    if (!smsResult.success) {
+      console.warn(`[MSG91] SMS dispatch warning for ${normalizedPhone}: ${smsResult.message}`);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Verification code sent via SMS to +${normalizedPhone}.`,
+      data: smsResult.data,
+    });
+  } catch (error) {
+    console.error("Send Phone OTP error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to send SMS verification code.",
+    });
+  }
+};
+
+// ==========================================
+// VERIFY PHONE NUMBER OTP
+// ==========================================
+export const verifyPhoneOtp = async (req, res) => {
+  try {
+    const { phoneNumber, otp } = req.body;
+
+    if (!phoneNumber || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number and verification code are required.",
+      });
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    const enteredOtp = otp.toString().trim();
+
+    // Check in database first
+    const dbOtp = await Otp.findOne({
+      phone: normalizedPhone,
+      otp: enteredOtp,
+    });
+
+    let isVerified = Boolean(dbOtp);
+
+    // If not in DB, fallback to MSG91 direct API verification
+    if (!isVerified) {
+      const msg91Verify = await verifySmsOtp({
+        phoneNumber: normalizedPhone,
+        otp: enteredOtp,
+      });
+      isVerified = msg91Verify.success;
+    }
+
+    if (!isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification code.",
+      });
+    }
+
+    // Clean up OTP record
+    await Otp.deleteMany({ phone: normalizedPhone });
+
+    // If user is already logged in, update their verification status
+    if (req.id) {
+      await User.findByIdAndUpdate(req.id, {
+        phoneNumber: normalizedPhone,
+        isPhoneVerified: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Phone number verified successfully.",
+    });
+  } catch (error) {
+    console.error("Verify Phone OTP error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to verify phone OTP.",
+    });
+  }
+};
+
+// ==========================================
+// RESEND PHONE NUMBER OTP
+// ==========================================
+export const resendPhoneOtpController = async (req, res) => {
+  try {
+    const { phoneNumber, retryType = "text" } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone number is required.",
+      });
+    }
+
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
+    // Call MSG91 Retry
+    const result = await resendSmsOtp({
+      phoneNumber: normalizedPhone,
+      retryType,
+    });
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: "Verification code has been resent to your mobile number.",
+      });
+    }
+
+    // Fallback: Generate new OTP and send
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await Otp.deleteMany({ phone: normalizedPhone });
+    await Otp.create({ phone: normalizedPhone, otp });
+
+    const fallbackSend = await sendSmsOtp({ phoneNumber: normalizedPhone, otp });
+
+    return res.status(200).json({
+      success: true,
+      message: fallbackSend.success
+        ? "New verification code sent to your phone."
+        : "OTP resend attempted.",
+    });
+  } catch (error) {
+    console.error("Resend Phone OTP error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to resend SMS code.",
+    });
+  }
+};
+
+// ==========================================
+// REGISTER
+// ==========================================
+export const register = async (req, res) => {
+  try {
+    const {
+      fullname,
+      email,
+      phoneNumber,
+      password,
+      role,
+      otp,
+      verificationMethod = "auto", // "phone", "email", or "auto"
+    } = req.body;
+
+    if (!fullname || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name, email, and password are required.",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedPhone = phoneNumber ? normalizePhoneNumber(phoneNumber) : "";
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
         message: "A user with this email address already exists.",
       });
+    }
+
+    // Verify OTP
+    if (!otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification code (OTP) is required.",
+      });
+    }
+
+    const enteredOtp = otp.toString().trim();
+    let isEmailVerified = false;
+    let isPhoneVerified = false;
+
+    // Check if OTP matches Email or Phone record
+    const emailOtpRecord = await Otp.findOne({
+      email: normalizedEmail,
+      otp: enteredOtp,
+    });
+
+    const phoneOtpRecord = normalizedPhone
+      ? await Otp.findOne({
+          phone: normalizedPhone,
+          otp: enteredOtp,
+        })
+      : null;
+
+    if (emailOtpRecord) {
+      isEmailVerified = true;
+      await Otp.deleteMany({ email: normalizedEmail });
+    } else if (phoneOtpRecord) {
+      isPhoneVerified = true;
+      await Otp.deleteMany({ phone: normalizedPhone });
+    } else {
+      // Also try MSG91 API verify if phone is provided
+      if (normalizedPhone) {
+        const msg91Result = await verifySmsOtp({
+          phoneNumber: normalizedPhone,
+          otp: enteredOtp,
+        });
+        if (msg91Result.success) {
+          isPhoneVerified = true;
+        }
+      }
+
+      if (!isEmailVerified && !isPhoneVerified) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid or expired verification code. Please request a new OTP.",
+        });
+      }
     }
 
     // Optional profile photo upload to Cloudinary
@@ -58,7 +357,6 @@ export const register = async (req, res) => {
         profilePhotoUrl = cloudResult.secure_url;
       } catch (uploadError) {
         console.error("Cloudinary upload failed:", uploadError);
-        // Continue with default avatar if Cloudinary upload fails
       }
     }
 
@@ -69,7 +367,9 @@ export const register = async (req, res) => {
     const newUser = await User.create({
       fullname: fullname.trim(),
       email: normalizedEmail,
-      phoneNumber: phoneNumber ? phoneNumber.trim() : "",
+      phoneNumber: normalizedPhone || (phoneNumber ? phoneNumber.trim() : ""),
+      isPhoneVerified,
+      isEmailVerified,
       password: hashedPassword,
       role: role || "jobseeker",
       profile: {
@@ -82,10 +382,18 @@ export const register = async (req, res) => {
       fullname: newUser.fullname,
       email: newUser.email,
       phoneNumber: newUser.phoneNumber,
+      isPhoneVerified: newUser.isPhoneVerified,
+      isEmailVerified: newUser.isEmailVerified,
       role: newUser.role,
       profile: newUser.profile,
       createdAt: newUser.createdAt,
     };
+
+    // Sign JWT token
+    const tokenData = { userId: newUser._id };
+    const token = jwt.sign(tokenData, process.env.JWT_SECRET, {
+      expiresIn: TOKEN_EXPIRES_IN,
+    });
 
     // Asynchronously send welcome email via Resend
     sendWelcomeEmail({
@@ -94,11 +402,15 @@ export const register = async (req, res) => {
       loginMethod: "Account Registration",
     }).catch((err) => console.error("Welcome email error (register):", err));
 
-    return res.status(201).json({
-      success: true,
-      message: "Account created successfully.",
-      user: sanitizedUser,
-    });
+    return res
+      .status(201)
+      .cookie("token", token, getAuthCookieOptions())
+      .json({
+        success: true,
+        message: "Account created and verified successfully.",
+        token,
+        user: sanitizedUser,
+      });
   } catch (error) {
     console.error("Registration error:", error);
     return res.status(500).json({
@@ -386,15 +698,45 @@ export const googleAuth = async (req, res) => {
       });
       payload = ticket.getPayload();
     } catch (verifyErr) {
-      // Fallback verification via Google tokeninfo endpoint
-      const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
-      if (!googleRes.ok) {
+      // Fallback 1: verify id_token via Google tokeninfo
+      try {
+        const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+        if (googleRes.ok) {
+          payload = await googleRes.json();
+        }
+      } catch (_) {}
+
+      // Fallback 2: verify access_token via Google userinfo endpoint
+      if (!payload || !payload.email) {
+        try {
+          const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (userinfoRes.ok) {
+            payload = await userinfoRes.json();
+          }
+        } catch (_) {}
+      }
+
+      // Fallback 3: verify access_token via Google tokeninfo
+      if (!payload || !payload.email) {
+        try {
+          const accessInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${token}`);
+          if (accessInfoRes.ok) {
+            const tokenInfo = await accessInfoRes.json();
+            if (tokenInfo.email) {
+              payload = tokenInfo;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (!payload || !payload.email) {
         return res.status(401).json({
           success: false,
           message: "Invalid or expired Google token.",
         });
       }
-      payload = await googleRes.json();
     }
 
     if (!payload || !payload.email) {
