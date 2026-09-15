@@ -672,36 +672,60 @@ export const parsePdfWithAI = async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const candidateModels = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+    const candidateModels = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-lite",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-2.5-pro",
+    ];
     const prompt = EXTRACTION_PROMPT(preparedText);
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     let parsedData = null;
     let lastError = null;
 
     for (const modelName of candidateModels) {
-      try {
-        console.log(`Attempting AI extraction with model: ${modelName}`);
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            responseMimeType: "application/json",
-            maxOutputTokens: 65536,
-          },
-        });
-        const aiResult = await model.generateContent(prompt);
-        const rawResponse = aiResult.response.text().trim();
-        const cleaned = rawResponse
-          .replace(/^```json\s*/i, "")
-          .replace(/^```\s*/i, "")
-          .replace(/```\s*$/i, "")
-          .trim();
-        parsedData = JSON.parse(cleaned);
-        console.log(`AI extraction successful with ${modelName}`);
-        break;
-      } catch (err) {
-        console.warn(`Model ${modelName} failed:`, err.message);
-        lastError = err;
+      // Try up to 2 attempts per model if transient 503/429 error occurs
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`Attempting AI extraction with model: ${modelName} (attempt ${attempt}/2)`);
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              responseMimeType: "application/json",
+              maxOutputTokens: 65536,
+            },
+          });
+          const aiResult = await model.generateContent(prompt);
+          const rawResponse = aiResult.response.text().trim();
+          const cleaned = rawResponse
+            .replace(/^```json\s*/i, "")
+            .replace(/^```\s*/i, "")
+            .replace(/```\s*$/i, "")
+            .trim();
+          parsedData = JSON.parse(cleaned);
+          console.log(`AI extraction successful with ${modelName}`);
+          break;
+        } catch (err) {
+          console.warn(`Model ${modelName} attempt ${attempt} failed:`, err.message);
+          lastError = err;
+          const isTransient =
+            err.message?.includes("503") ||
+            err.message?.includes("429") ||
+            err.message?.includes("high demand") ||
+            err.message?.includes("Service Unavailable") ||
+            err.message?.includes("ResourceExhausted");
+          if (isTransient && attempt < 2) {
+            console.log(`Waiting 2s before retrying model ${modelName}...`);
+            await sleep(2000);
+          } else {
+            break;
+          }
+        }
       }
+      if (parsedData) break;
     }
 
     if (!parsedData) {
