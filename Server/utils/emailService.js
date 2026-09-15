@@ -12,9 +12,13 @@ const getSiteUrl = () => {
 
   if (process.env.CLIENT_URL) {
     const urls = process.env.CLIENT_URL.split(",").map((u) => u.trim());
+    // Prioritize the official custom domain first
+    const customDomain = urls.find((u) => u.includes("theworkflow.online") && !u.includes("localhost"));
+    if (customDomain) return customDomain.replace(/\/+$/, "");
+
     const prodUrl = urls.find(
       (u) =>
-        (u.includes("theworkflow.online") || u.includes("vercel.app") || u.startsWith("https://")) &&
+        (u.includes("vercel.app") || u.startsWith("https://")) &&
         !u.includes("localhost")
     );
     if (prodUrl) return prodUrl.replace(/\/+$/, "");
@@ -404,7 +408,7 @@ export const sendWelcomeEmail = async ({ email, name, loginMethod = "Email & Pas
  */
 const generateNewJobEmailHtml = ({ job, recipientName = "Aspirant" }) => {
   const firstName = (recipientName || "Aspirant").split(" ")[0];
-  const jobUrl = `${SITE_URL}/job/${job._id}`;
+  const jobUrl = `${getSiteUrl()}/job/${job._id}`;
   const vacanciesText = job.vacancies ? `${job.vacancies}` : "Multiple Vacancies";
   const salaryText = job.salary ? `${job.salary}` : "As per Government / Industry Norms";
   const locationText = job.location ? `${job.location}` : "All India / Multiple Locations";
